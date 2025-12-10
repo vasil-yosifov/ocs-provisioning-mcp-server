@@ -1,0 +1,209 @@
+{
+  "tools": [
+    {
+      "name": "lookup_subscriber",
+      "description": "Lookup subscriberId by msisdn, imsi or first and last name",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "msisdn": { "type": "string", "description": "MSISDN number to lookup" },
+          "imsi": { "type": "string", "description": "IMSI to lookup" },
+          "firstName": { "type": "string", "description": "Subscriber first name" },
+          "lastName": { "type": "string", "description": "Subscriber last name" }
+        }
+      }
+    },
+    {
+      "name": "create_subscriber",
+      "description": "Create a new subscriber",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriber": { "$ref": "#/components/schemas/Subscriber" }
+        },
+        "required": ["subscriber"]
+      }
+    },
+    {
+      "name": "get_subscriber",
+      "description": "Get subscriber by ID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriberId": { "type": "string" }
+        },
+        "required": ["subscriberId"]
+      }
+    },
+    {
+      "name": "update_subscriber",
+      "description": "Update subscriber fields",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriberId": { "type": "string" },
+          "patches": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PatchOperation" }
+          }
+        },
+        "required": ["subscriberId", "patches"]
+      }
+    },
+    {
+      "name": "delete_subscriber",
+      "description": "Delete subscriber",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriberId": { "type": "string" }
+        },
+        "required": ["subscriberId"]
+      }
+    },
+    {
+      "name": "create_subscription",
+      "description": "Create a subscription for subscriber",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriberId": { "type": "string" },
+          "subscription": { "$ref": "#/components/schemas/Subscription" }
+        },
+        "required": ["subscriberId", "subscription"]
+      }
+    },
+    {
+      "name": "list_subscriptions",
+      "description": "List subscriptions for a subscriber",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriberId": { "type": "string" }
+        },
+        "required": ["subscriberId"]
+      }
+    },
+    {
+      "name": "get_subscription",
+      "description": "Get subscription by ID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriptionId": { "type": "string" }
+        },
+        "required": ["subscriptionId"]
+      }
+    },
+    {
+      "name": "update_subscription",
+      "description": "Update subscription fields",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriptionId": { "type": "string" },
+          "patches": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PatchOperation" }
+          }
+        },
+        "required": ["subscriptionId", "patches"]
+      }
+    },
+    {
+      "name": "delete_subscription",
+      "description": "Delete subscription",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriptionId": { "type": "string" }
+        },
+        "required": ["subscriptionId"]
+      }
+    },
+    {
+      "name": "create_balance",
+      "description": "Create a balance for a subscription",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriptionId": { "type": "string" },
+          "balance": { "$ref": "#/components/schemas/Balance" }
+        },
+        "required": ["subscriptionId", "balance"]
+      }
+    },
+    {
+      "name": "list_balances",
+      "description": "Get all balances for a subscription",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriptionId": { "type": "string" }
+        },
+        "required": ["subscriptionId"]
+      }
+    },
+    {
+      "name": "delete_balances",
+      "description": "Delete all balances for a subscription",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscriptionId": { "type": "string" }
+        },
+        "required": ["subscriptionId"]
+      }
+    },
+    {
+      "name": "create_account_history",
+      "description": "Create a new account history entry",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "accountHistory": { "$ref": "#/components/schemas/AccountHistory" }
+        },
+        "required": ["accountHistory"]
+      }
+    },
+    {
+      "name": "list_account_history",
+      "description": "List account history by entity ID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "entityId": { "type": "string" },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "offset": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["entityId"]
+      }
+    },
+    {
+      "name": "get_account_history",
+      "description": "Get account history by interaction ID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "interactionId": { "type": "string" }
+        },
+        "required": ["interactionId"]
+      }
+    },
+    {
+      "name": "update_account_history",
+      "description": "Update account history entry",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "interactionId": { "type": "string" },
+          "patches": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PatchOperation" }
+          }
+        },
+        "required": ["interactionId", "patches"]
+      }
+    }
+  ]
+}
