@@ -57,7 +57,7 @@ src/
 │   ├── subscriber.py   # Subscriber lifecycle tools
 │   ├── subscription.py # Subscription management tools
 │   ├── balance.py      # Balance management tools
-│   └── history.py      # Account history tools
+│   └── account_history.py # Account history tools
 └── models/             # Pydantic data models
     ├── __init__.py
     ├── common.py       # Shared models (e.g. PatchOperation)
