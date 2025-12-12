@@ -2,10 +2,11 @@ from typing import Any, Dict, List, Optional
 import logging
 import uuid
 import random
+from datetime import datetime
 
 from src.client import ocs_client
 from src.models.subscriber import Subscriber
-from src.models.common import PatchOperation
+from src.models.common import PatchOperation, SubscriberState
 
 logger = logging.getLogger(__name__)
 
@@ -154,13 +155,26 @@ async def create_subscriber(
         "imsi": f"23205660{random_number:07d}",
         "subscriberType": subscriber_type,
         "languageId": language_id,
+        "carrierId": "MAGENTA",
+        "currentState": SubscriberState.ACTIVE,
         "personalInfo": {
             "firstName": first_name,
             "lastName": last_name,
             "email": email,
         },
+        "services": {
+            "voice": True,
+            "sms": True,
+            "mms": True,
+            "data": True,
+            "roaming": False,
+            "valueAddedServices": [
+                "voicemail",
+                "callWaiting",
+                "internationalCalls"
+            ]
+        },
         "billing": {
-            "billingCycle": 1,
             "billingAddress": {
                 "street": street,
                 "city": city,
@@ -168,6 +182,14 @@ async def create_subscriber(
             }
         }
     }
+    
+    # Add billing cycle information only for POSTPAID subscribers
+    if subscriber_type == "POSTPAID":
+        current_day = datetime.now().day
+        billcycle_day = 1 if current_day > 28 else current_day
+        
+        subscriber_data["billing"]["billcycleDay"] = billcycle_day
+        subscriber_data["billing"]["billingCycle"] = "MONTHLY"
 
     # Validate with Pydantic model
     model = Subscriber(**subscriber_data)
