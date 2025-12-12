@@ -38,6 +38,7 @@ mcp.add_tool(create_subscriber)
 mcp.add_tool(get_subscriber)
 mcp.add_tool(update_subscriber)
 mcp.add_tool(delete_subscriber)
+mcp.add_tool(lookup_subscriber)
 
 # Register Subscription Tools
 # mcp.add_tool(create_subscription)

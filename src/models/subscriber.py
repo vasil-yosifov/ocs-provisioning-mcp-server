@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 from src.models.common import SubscriberState
 
 class Subscriber(BaseModel):
-    subscriberId: str
     businessAccountId: Optional[str] = None
     msisdn: Optional[str] = Field(None, pattern=r"^[0-9]{11,15}$")
     imsi: Optional[str] = Field(None, pattern=r"^[0-9]{12,15}$")
