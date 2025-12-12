@@ -48,6 +48,10 @@ class OCSClient:
         try:
             response = await self.client.request(method, endpoint, headers=headers, **kwargs)
             
+            if response.status_code == 404:
+                logger.debug("Response: 404 Not Found - converting to standard format")
+                return {"ResultCode": "Entity not found"}
+            
             if response.status_code >= 400:
                 try:
                     error_body = response.json()
@@ -64,7 +68,7 @@ class OCSClient:
             
             if response.status_code == 204:
                 logger.debug("Response: 204 No Content")
-                return None
+                return {"ResultCode": "Subscriber successfully deleted"}
             
             response_data = response.json()
             logger.debug(f"Response Body: {response_data}")

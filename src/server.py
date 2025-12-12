@@ -34,30 +34,28 @@ logger = logging.getLogger(__name__)
 # Initialize FastMCP server
 mcp = FastMCP("ocs-provisioning")
 
-# Register Subscriber Tools
-mcp.add_tool(lookup_subscriber)
 mcp.add_tool(create_subscriber)
 mcp.add_tool(get_subscriber)
 mcp.add_tool(update_subscriber)
 mcp.add_tool(delete_subscriber)
 
 # Register Subscription Tools
-mcp.add_tool(create_subscription)
-mcp.add_tool(list_subscriptions)
-mcp.add_tool(get_subscription)
-mcp.add_tool(update_subscription)
-mcp.add_tool(delete_subscription)
+# mcp.add_tool(create_subscription)
+# mcp.add_tool(list_subscriptions)
+# mcp.add_tool(get_subscription)
+# mcp.add_tool(update_subscription)
+# mcp.add_tool(delete_subscription)
 
 # Register Balance Tools
-mcp.add_tool(create_balance)
-mcp.add_tool(list_balances)
-mcp.add_tool(delete_balances)
+# mcp.add_tool(create_balance)
+# mcp.add_tool(list_balances)
+# mcp.add_tool(delete_balances)
 
 # Register Account History Tools
-mcp.add_tool(create_account_history)
-mcp.add_tool(list_account_history)
-mcp.add_tool(get_account_history)
-mcp.add_tool(update_account_history)
+# mcp.add_tool(create_account_history)
+# mcp.add_tool(list_account_history)
+# mcp.add_tool(get_account_history)
+# mcp.add_tool(update_account_history)
 
 def main():
     """Entry point for the MCP server."""
