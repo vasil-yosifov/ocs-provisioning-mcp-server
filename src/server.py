@@ -25,14 +25,35 @@ from src.tools.account_history import (
     update_account_history
 )
 import logging
+import os
+from pathlib import Path
 from src.config import settings
 
 # Configure logging
 logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
 logger = logging.getLogger(__name__)
 
-# Initialize FastMCP server
-mcp = FastMCP("ocs-provisioning")
+# Load system instructions from external file
+def load_system_instructions():
+    """Load MCP system instructions from external markdown file."""
+    system_prompt_path = Path(__file__).parent.parent / "system_prompt.md"
+    try:
+        with open(system_prompt_path, 'r', encoding='utf-8') as f:
+            instructions = f.read()
+            logger.info(f"Successfully loaded system instructions from {system_prompt_path}")
+            return instructions
+    except FileNotFoundError:
+        logger.warning(f"System prompt file not found at {system_prompt_path}, using default instructions")
+        return "OCS Subscriber Management System - Tools for managing telecom subscribers"
+    except Exception as e:
+        logger.error(f"Error loading system prompt: {e}")
+        return "OCS Subscriber Management System - Tools for managing telecom subscribers"
+
+# Initialize FastMCP server with instructions
+mcp = FastMCP(
+    "ocs-provisioning",
+    instructions=load_system_instructions()
+)
 
 mcp.add_tool(create_subscriber)
 mcp.add_tool(get_subscriber)
