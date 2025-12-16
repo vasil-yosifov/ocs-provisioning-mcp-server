@@ -22,6 +22,9 @@ from src.tools.account_history import (
     create_account_history,
     get_account_history
 )
+from src.tools.offers import (
+    get_available_offers
+)
 import logging
 import os
 from pathlib import Path
@@ -75,6 +78,9 @@ mcp.add_tool(lookup_subscriber)
 # Register Account History Tools
 mcp.add_tool(create_account_history)
 mcp.add_tool(get_account_history)
+
+# Register Offers Tools
+mcp.add_tool(get_available_offers)
 
 def main():
     """Entry point for the MCP server."""
