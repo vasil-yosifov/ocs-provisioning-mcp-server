@@ -20,9 +20,7 @@ from src.tools.balance import (
 )
 from src.tools.account_history import (
     create_account_history,
-    list_account_history,
-    get_account_history,
-    update_account_history
+    get_account_history
 )
 import logging
 import os
@@ -52,7 +50,8 @@ def load_system_instructions():
 # Initialize FastMCP server with instructions
 mcp = FastMCP(
     "ocs-provisioning",
-    instructions=load_system_instructions()
+    instructions=load_system_instructions(), 
+    log_level="DEBUG"
 )
 
 mcp.add_tool(create_subscriber)
