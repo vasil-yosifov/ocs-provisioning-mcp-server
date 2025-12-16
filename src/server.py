@@ -74,10 +74,8 @@ mcp.add_tool(lookup_subscriber)
 # mcp.add_tool(delete_balances)
 
 # Register Account History Tools
-# mcp.add_tool(create_account_history)
-# mcp.add_tool(list_account_history)
-# mcp.add_tool(get_account_history)
-# mcp.add_tool(update_account_history)
+mcp.add_tool(create_account_history)
+mcp.add_tool(get_account_history)
 
 def main():
     """Entry point for the MCP server."""
