@@ -166,21 +166,24 @@ status: "completed"
     interaction_id = f"AI-{str(uuid.uuid4())[:8]}"
     current_time = datetime.utcnow()
     
+    # Format timestamp as ISO 8601 with Z suffix for UTC (YYYY-MM-DDTHH:MI:SSZ)
+    iso_timestamp = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    
     # Build the account history object with AI-AGENT channel
     history_data = AccountHistory(
         interactionId=interaction_id,
         entityId=entityId,
         entityType=EntityType(entityType),
-        creationDate=current_time,
+        creationDate=iso_timestamp,
         description=description,
         direction=direction or "automated",
         reason=reason,
         status=status or "completed",
-        statusChangeDate=current_time if status else None,
+        statusChangeDate=iso_timestamp if status else None,
         channel="AI-AGENT",  # CRITICAL: Always set to AI-AGENT for AI interactions
         interactionDate={
-            "startDateTime": current_time,
-            "endDateTime": current_time
+            "startDateTime": iso_timestamp,
+            "endDateTime": iso_timestamp
         }
     )
     
