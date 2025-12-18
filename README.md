@@ -9,7 +9,8 @@ This MCP server enables AI assistants to perform subscriber management, account 
 ## Features
 
 - **Subscriber Management**: Create, lookup, update (patch), and delete subscribers.
-- **Subscription Management**: Create, list, get, update, and delete subscriptions.
+- **Subscription Management**: Create, list, get, update, delete, and manage state transitions for subscriptions.
+- **Offers Management**: Browse available offers and retrieve specific offer details.
 - **Balance Management**: Create, list, and delete balances.
 - **Account History**: Create, list, get, and update account history entries.
 - **Transaction Support**: Automatic `X-Transaction-ID` generation and tracking.
@@ -24,11 +25,16 @@ This MCP server enables AI assistants to perform subscriber management, account 
 - `delete_subscriber`: Delete a subscriber.
 
 ### Subscription Tools
-- `create_subscription`: Create a subscription for a subscriber.
-- `list_subscriptions`: List subscriptions for a subscriber.
-- `get_subscription`: Get subscription details by ID.
-- `update_subscription`: Update subscription fields.
-- `delete_subscription`: Delete a subscription.
+- `create_subscription`: Create a subscription for a subscriber based on an offer.
+- `list_subscriptions`: List all subscriptions for a subscriber.
+- `get_subscription`: Get detailed subscription information by ID.
+- `update_subscription`: Update subscription fields using patch operations.
+- `change_subscription_state`: Activate, suspend, cancel, or renew a subscription.
+- `delete_subscription`: Permanently delete a subscription.
+
+### Offers Tools
+- `get_available_offers`: Retrieve the complete catalog of available offers with balance details.
+- `get_offer_by_id`: Get detailed information about a specific offer by its ID.
 
 ### Balance Tools
 - `create_balance`: Create a balance for a subscription.
@@ -83,13 +89,15 @@ ocs-provisioning-mcp-server/
 │   │   ├── common.py           # Shared models
 │   │   ├── subscriber.py       # Subscriber models
 │   │   ├── subscription.py     # Subscription models
-│   │   ├── balance.py          # Balance models
-│   │   └── history.py          # Account history models
-│   ├── tools/                  # Tool implementations
-│   │   ├── subscriber.py       # Subscriber tools
-│   │   ├── subscription.py     # Subscription tools
+│   │   ├── offers.py           # Offers tools
 │   │   ├── balance.py          # Balance tools
 │   │   └── account_history.py  # Account history tools
+│   ├── client.py               # HTTP client wrapper
+│   ├── config.py               # Configuration management
+│   └── server.py               # Main server entry point
+├── tests/                      # Test suite
+├── specs/                      # Project specifications
+├── app-spec-docs/              # API history tools
 │   ├── client.py               # HTTP client wrapper
 │   ├── config.py               # Configuration management
 │   └── server.py               # Main server entry point

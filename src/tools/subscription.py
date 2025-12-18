@@ -325,3 +325,179 @@ Step 3: Delete subscription
     )
     logger.info(f"delete_subscription result: {result}")
     return result
+
+async def change_subscription_state(subscriptionId: str, action: str) -> Dict[str, Any]:
+    """
+**Tool Name:** Change Subscription State
+
+**Purpose:** Changes the state of a subscription by executing state transition operations. This tool combines activate, suspend, cancel, and renew operations into a single interface for managing the subscription lifecycle.
+
+**Parameters:**
+- `subscriptionId` (required): The unique identifier of the subscription whose state to change
+- `action` (required): The state transition action to perform. Must be one of:
+  - `"active"`: Activate a pending or suspended subscription
+  - `"suspend"`: Suspend an active subscription
+  - `"cancelled"`: Cancel an active or suspended subscription
+  - `"renew"`: Renew/increment the recurring cycle for an active subscription
+
+**How to Obtain subscriptionId:**
+The subscription ID is available from multiple sources:
+1. **From get_subscriber response**: When calling `get_subscriber(subscriberId)`, the response includes a `subscriptions` array where each subscription object contains a `subscriptionId` field
+2. **From list_subscriptions response**: When calling `list_subscriptions(subscriberId)`, each subscription in the returned list includes its `subscriptionId`
+3. **From get_subscription response**: If you already retrieved subscription details
+4. **From create_subscription response**: When a subscription was just created
+
+**State Transitions by Action:**
+
+**Action: "active"**
+- Allowed from states: PENDING, SUSPENDED
+- Transitions to: ACTIVE
+- Sets: activationDate and calculates renewalDate for recurring subscriptions
+- Use when: Activating a new subscription or reactivating a suspended one
+- Example: After creating a subscription in PENDING state, activate it to enable service
+
+**Action: "suspend"**
+- Allowed from states: ACTIVE
+- Transitions to: SUSPENDED
+- Use when: Temporarily disabling service for a subscriber (e.g., payment issues, customer request)
+- Example: Suspend an active subscription to prevent further charges while keeping the subscription record
+
+**Action: "cancelled"**
+- Allowed from states: ACTIVE, SUSPENDED
+- Transitions to: CANCELLED
+- Use when: Permanently ending the subscription (cannot be reactivated)
+- Example: Customer cancels service or account is closed
+- Note: This is permanent - use suspend for temporary service interruption
+
+**Action: "renew"**
+- Allowed from states: ACTIVE
+- Operation: Increments the recurring cycle count for recurring subscriptions
+- Recalculates: renewalDate after cycle increment if subscription not expired
+- Use when: Renewing a subscription for the next billing cycle
+- Example: Monthly subscription cycle ends and needs renewal for next period
+- Note: Only applies to subscriptions with recurring=true
+
+**Typical Workflows:**
+
+**Workflow 1: New Subscription Activation**
+```
+1. Call create_subscription() with subscription data → Returns subscription in PENDING state
+2. Call change_subscription_state(subscriptionId, "active") → Transitions to ACTIVE
+3. Service becomes available to subscriber
+```
+
+**Workflow 2: Subscription Suspension (Temporary)**
+```
+1. Call get_subscription(subscriptionId) → Verify current state is ACTIVE
+2. Call change_subscription_state(subscriptionId, "suspend") → Transitions to SUSPENDED
+3. Service is suspended, no charges incurred
+4. Call change_subscription_state(subscriptionId, "active") → Reactivate if customer resolves issue
+```
+
+**Workflow 3: Subscription Cancellation (Permanent)**
+```
+1. Call get_subscription(subscriptionId) → Check current state and remaining balances
+2. Call change_subscription_state(subscriptionId, "cancelled") → Transitions to CANCELLED
+3. Service terminates permanently, subscription cannot be reactivated
+```
+
+**Workflow 4: Recurring Subscription Renewal**
+```
+1. Call get_subscription(subscriptionId) → Verify state is ACTIVE and subscription is recurring
+2. Call change_subscription_state(subscriptionId, "renew") → Increments cycle count
+3. renewalDate is recalculated for next cycle
+4. Service continues for another billing period
+```
+
+**Returns:**
+- Success (200): State transition successful, returns updated subscription object with:
+  - Updated `state` field reflecting the new state
+  - Updated timestamps (e.g., `activatedAt`, `suspendedAt`, `renewalDate`)
+  - All other subscription fields
+- Error (400): Bad request (invalid action parameter)
+- Error (404): Subscription not found
+- Error (409): Conflict - state transition not allowed from current state (e.g., trying to suspend a pending subscription)
+- Error (422): Invalid state transition for this subscription
+
+**Use Cases:**
+- Activating newly created subscriptions to make services available
+- Temporarily suspending service for subscribers (payment issues, customer request)
+- Permanently cancelling subscriptions when customers leave
+- Auto-renewing recurring subscriptions at the end of billing cycles
+- Managing subscription lifecycle in customer onboarding flows
+- Handling service interruptions and restorations
+
+**Important Considerations:**
+
+**Activation:**
+- Only works from PENDING or SUSPENDED states
+- Sets activation date and calculates first renewal date
+- Required before service becomes available to subscriber
+
+**Suspension:**
+- Pauses service without terminating subscription record
+- Can be reactivated by calling with "active" action
+- Useful for temporary service interruptions (payment issues, maintenance, customer requests)
+- Balances and subscription configuration are preserved
+
+**Cancellation:**
+- Permanent action - cannot be undone
+- Any remaining balances will be lost
+- Subscription cannot be reactivated after cancellation
+- Consider alternatives (suspend) before cancelling
+
+**Renewal:**
+- Only applies to subscriptions where recurring=true
+- Increments the recurring cycle count
+- Recalculates renewalDate for next billing period
+- Must be called when current cycle expires to continue service
+
+**State Transition Rules:**
+- PENDING → ACTIVE (via "active" action)
+- ACTIVE → SUSPENDED (via "suspend" action)
+- ACTIVE → CANCELLED (via "cancelled" action)
+- SUSPENDED → ACTIVE (via "active" action)
+- SUSPENDED → CANCELLED (via "cancelled" action)
+- ACTIVE → ACTIVE+1 cycle (via "renew" action)
+- Cannot transition from CANCELLED, EXPIRED states
+
+**Best Practices:**
+- Always verify subscription state before state transitions using get_subscription
+- Check subscription type and balance allocations before suspension/cancellation
+- Confirm cancellations with user - emphasize this is permanent
+- Use renewal automatically for recurring subscriptions when cycles complete
+- Log all state changes for audit and support purposes
+- Inform subscribers of state changes (activation, suspension, cancellation, renewal)
+- For temporary service stops, use suspend instead of cancel
+    """
+    logger.info(f"change_subscription_state called for {subscriptionId} with action: {action}")
+    
+    # Validate action parameter
+    valid_actions = ["active", "suspend", "cancelled", "renew"]
+    if action.lower() not in valid_actions:
+        logger.error(f"Invalid action: {action}. Must be one of {valid_actions}")
+        return {
+            "error": f"Invalid action '{action}'. Must be one of: {', '.join(valid_actions)}"
+        }
+    
+    # Map action to endpoint
+    action_lower = action.lower()
+    endpoint_map = {
+        "active": f"/subscriptions/{subscriptionId}/activate",
+        "suspend": f"/subscriptions/{subscriptionId}/suspend",
+        "cancelled": f"/subscriptions/{subscriptionId}/cancel",
+        "renew": f"/subscriptions/{subscriptionId}/renew"
+    }
+    
+    endpoint = endpoint_map[action_lower]
+    
+    try:
+        result = await ocs_client.request(
+            method="POST",
+            endpoint=endpoint
+        )
+        logger.info(f"change_subscription_state result: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error changing subscription state: {str(e)}")
+        raise

@@ -11,6 +11,7 @@ from src.tools.subscription import (
     list_subscriptions,
     get_subscription,
     update_subscription,
+    change_subscription_state,
     delete_subscription
 )
 from src.tools.balance import (
@@ -68,7 +69,7 @@ mcp.add_tool(lookup_subscriber)
 mcp.add_tool(create_subscription)
 mcp.add_tool(list_subscriptions)
 mcp.add_tool(get_subscription)
-# mcp.add_tool(update_subscription)
+mcp.add_tool(change_subscription_state)
 mcp.add_tool(delete_subscription)
 
 # Register Balance Tools
