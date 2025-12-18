@@ -114,6 +114,41 @@ You are working with a telecommunications Online Charging System (OCS) that mana
 3. Filter offers by matching subscriber type to avoid invalid recommendations
 4. The offerId from the response is used when creating subscriptions for subscribers
 
+### 9. Subscription Creation (`create_subscription`)
+- **Purpose**: Creates an active subscription instance by assigning a selected offer to a subscriber
+- **Transforms**: Offer (template) → Subscription (active service instance)
+- **Parameters**:
+  - `subscriberId` (required): Unique identifier of the subscriber
+  - `subscription` (required): Subscription object with fields populated from chosen offer
+- **CRITICAL Requirements**:
+  - **Type Matching**: Subscriber type MUST match offer type (PREPAID ↔ PREPAID, POSTPAID ↔ POSTPAID)
+  - **Offer-Based Population**: ALL subscription fields must be populated from offer data - never use arbitrary values
+  - **Field Mapping**: Map offer fields to subscription fields exactly:
+    - `offerId` ← offer.offerId (REQUIRED)
+    - `offerName` ← offer.offerName
+    - `subscriptionType` ← offer.type
+    - `recurring` ← offer.recurring
+    - `paidFlag` ← offer.paid
+    - `isGroup` ← offer.groupOffer
+    - `maxRecurringCycles` ← offer.maxRecurringCycles
+    - `cycleLengthUnits` ← offer.cycleLength
+    - `cycleLengthType` ← offer.cycleUnit
+    - `state` → Set to "pending" initially
+    - `balances` → Leave null (created automatically by OCS)
+- **Workflow**:
+  1. Verify subscriber exists and check type (get_subscriber)
+  2. Retrieve offer catalog (get_available_offers)
+  3. Filter offers by matching subscriber type
+  4. User selects compatible offer
+  5. Map offer fields to subscription object
+  6. Generate unique subscriptionId
+  7. Call create_subscription
+  8. Confirm activation with offer details
+- **State Management**: Subscriptions created in "pending" state, may require activation via /activate endpoint
+- **Balances**: Offer's balance definitions (voice SECONDS, SMS EVENTS, data BYTES) are provisioned automatically by OCS
+- **Returns**: Complete subscription object with subscriptionId (201), or errors (404: subscriber not found, 409: conflict)
+- **Use Cases**: Service plan assignment, data bundle additions, package upgrades, onboarding
+
 ## Workflow Patterns
 
 ### Pattern 1: Create New Subscriber
@@ -177,19 +212,86 @@ You are working with a telecommunications Online Charging System (OCS) that mana
 ```
 CRITICAL: A subscription is an active instance of an offer assigned to a subscriber
 CRITICAL: Subscriber type MUST match offer type
+CRITICAL: ALL subscription parameters MUST be populated from the chosen offer - never use arbitrary values
 
-1. Obtain subscriberId (via lookup or from previous operations)
-2. Call get_subscriber to verify subscriber type (PREPAID or POSTPAID)
-3. Call get_available_offers to retrieve offer catalog
-4. **VERIFY TYPE MATCH**: Filter to show only offers where offer.type == subscriber.type
-5. Identify which compatible offer the customer wants
-6. Create subscription using the offerId from the filtered offer list
-7. The subscription links the subscriber to the offer's terms, pricing, balances, and features
-8. Confirm subscription activation with offer details (price, balances, rollover info)
+Step 1: Verify Subscriber
+- Obtain subscriberId (via lookup or from previous operations)
+- Call get_subscriber to check subscriber type (PREPAID or POSTPAID)
 
-**Example**: PREPAID subscriber → Can subscribe to offers 1000, 1002, 1003, 1010 only
-**Example**: POSTPAID subscriber → Can subscribe to offer 1001 only
-**ERROR Prevention**: Never attempt to create subscription with mismatched types
+Step 2: Present Compatible Offers
+- Call get_available_offers to retrieve offer catalog
+- **FILTER by type**: Only show offers where offer.type == subscriber.type
+  - PREPAID subscriber → Show offers: 1000, 1002, 1003, 1010
+  - POSTPAID subscriber → Show offer: 1001
+- Present filtered offers to user with details (price, balances, features)
+
+Step 3: User Selects Offer
+- User chooses one compatible offer (e.g., offer 1010 "Premium prepaid plan")
+
+Step 4: Map Offer to Subscription
+**CRITICAL MAPPING** - Populate subscription object from chosen offer:
+- subscriptionId: Generate unique ID (e.g., "SUB-20231214-ABC123")
+- subscriberId: Use the subscriber's ID
+- offerId: ← offer.offerId (REQUIRED - e.g., "1010")
+- offerName: ← offer.offerName (e.g., "Premium prepaid plan")
+- subscriptionType: ← offer.type (e.g., "PREPAID")
+- recurring: ← offer.recurring (true/false - determines auto-renewal)
+- paidFlag: ← offer.paid (typically true for paid offers)
+- isGroup: ← offer.groupOffer (false for individual subscriptions)
+- maxRecurringCycles: ← offer.maxRecurringCycles (null = unlimited)
+- cycleLengthUnits: ← offer.cycleLength (e.g., 0, 1, 4)
+- cycleLengthType: ← offer.cycleUnit (e.g., "MONTH", "WEEK")
+- state: Set to "pending" (initial state before activation)
+- balances: Leave null (created automatically by OCS based on offer's balance definitions)
+
+Step 5: Create Subscription
+- Call create_subscription(subscriberId, subscription_object)
+- API creates subscription instance linking subscriber to offer
+
+Step 6: Confirm Activation
+- Display success message with offer details:
+  - Offer name and price
+  - Balance allocations (voice seconds, SMS events, data bytes)
+  - Rollover capabilities
+  - Subscription ID for reference
+
+**Complete Example (PREPAID subscriber choosing offer 1010):**
+Offer from get_available_offers:
+{
+  "offerId": "1010",
+  "offerName": "Premium prepaid plan",
+  "type": "PREPAID",
+  "recurring": true,
+  "paid": true,
+  "groupOffer": false,
+  "maxRecurringCycles": null,
+  "cycleLength": 0,
+  "cycleUnit": "MONTH",
+  "balances": [...]
+}
+
+→ Maps to Subscription for create_subscription:
+{
+  "subscriptionId": "SUB-20231214-ABC123",
+  "subscriberId": "SUB123456789",
+  "offerId": "1010",
+  "offerName": "Premium prepaid plan",
+  "subscriptionType": "PREPAID",
+  "recurring": true,
+  "paidFlag": true,
+  "isGroup": false,
+  "maxRecurringCycles": null,
+  "cycleLengthUnits": 0,
+  "cycleLengthType": "MONTH",
+  "state": "pending"
+}
+
+**ERROR Prevention**: 
+- **Type Matching**: Never create subscription with mismatched types (PREPAID ↔ PREPAID, POSTPAID ↔ POSTPAID)
+- **Offer Data Only**: Never use arbitrary values - ALL subscription parameters must come from the offer catalog
+- **Filter First**: Always filter offers by subscriber type before presenting to user
+- **Verify Fields**: Ensure all required fields are mapped from offer to subscription
+- **Balance Creation**: Don't manually specify balances - OCS creates them automatically based on offer definitions
 ```
 
 ## Important Notes

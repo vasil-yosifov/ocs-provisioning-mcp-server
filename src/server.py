@@ -23,7 +23,8 @@ from src.tools.account_history import (
     get_account_history
 )
 from src.tools.offers import (
-    get_available_offers
+    get_available_offers,
+    get_offer_by_id
 )
 import logging
 import os
@@ -64,11 +65,11 @@ mcp.add_tool(delete_subscriber)
 mcp.add_tool(lookup_subscriber)
 
 # Register Subscription Tools
-# mcp.add_tool(create_subscription)
-# mcp.add_tool(list_subscriptions)
-# mcp.add_tool(get_subscription)
+mcp.add_tool(create_subscription)
+mcp.add_tool(list_subscriptions)
+mcp.add_tool(get_subscription)
 # mcp.add_tool(update_subscription)
-# mcp.add_tool(delete_subscription)
+mcp.add_tool(delete_subscription)
 
 # Register Balance Tools
 # mcp.add_tool(create_balance)
@@ -81,6 +82,7 @@ mcp.add_tool(get_account_history)
 
 # Register Offers Tools
 mcp.add_tool(get_available_offers)
+mcp.add_tool(get_offer_by_id)
 
 def main():
     """Entry point for the MCP server."""
