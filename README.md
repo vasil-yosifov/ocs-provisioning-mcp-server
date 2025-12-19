@@ -8,149 +8,115 @@ This MCP server enables AI assistants to perform subscriber management, account 
 
 ## Features
 
-- **Subscriber Management**: Create, lookup, update (patch), and delete subscribers
-- **Account Operations**: Query account history with state transition tracking
-- **Subscription Handling**: Manage subscriber subscriptions
-- **Transaction Support**: Handle transaction IDs and tracking
+- **Subscriber Management**: Create, lookup, update (patch), and delete subscribers.
+- **Subscription Management**: Create, list, get, update, delete, and manage state transitions for subscriptions.
+- **Offers Management**: Browse available offers and retrieve specific offer details.
+- **Balance Management**: Create, list, and delete balances.
+- **Account History**: Create, list, get, and update account history entries.
+- **Transaction Support**: Automatic `X-Transaction-ID` generation and tracking.
 
-## Architecture
+## Tools Available
 
-The server follows strict architectural principles defined in the project constitution:
+### Subscriber Tools
+- `lookup_subscriber`: Lookup subscriber by MSISDN, IMSI, or name.
+- `create_subscriber`: Create a new subscriber.
+- `get_subscriber`: Get subscriber details by ID.
+- `update_subscriber`: Update subscriber fields using patch operations.
+- `delete_subscriber`: Delete a subscriber.
 
-- **MCP SDK Compliance**: Built exclusively on the official Anthropic `mcp` Python SDK
-- **Tool Definition Standards**: Consistent naming, typing, and error handling across all tools
-- **Defensive Error Handling**: All external API calls wrapped with proper exception handling
-- **Externalized Configuration**: Credentials and settings loaded from environment/config files
+### Subscription Tools
+- `create_subscription`: Create a subscription for a subscriber based on an offer.
+- `list_subscriptions`: List all subscriptions for a subscriber.
+- `get_subscription`: Get detailed subscription information by ID.
+- `update_subscription`: Update subscription fields using patch operations.
+- `change_subscription_state`: Activate, suspend, cancel, or renew a subscription.
+- `delete_subscription`: Permanently delete a subscription.
 
-See [`.specify/memory/constitution.md`](.specify/memory/constitution.md) for complete governance rules.
+### Offers Tools
+- `get_available_offers`: Retrieve the complete catalog of available offers with balance details.
+- `get_offer_by_id`: Get detailed information about a specific offer by its ID.
 
-## Technology Stack
+### Balance Tools
+- `create_balance`: Create a balance for a subscription.
+- `list_balances`: List balances for a subscription.
+- `delete_balances`: Delete all balances for a subscription.
 
-- **Python**: 3.11+
-- **MCP SDK**: Official Anthropic `mcp` package
-- **HTTP Client**: httpx or requests (with explicit timeouts)
-- **Type Checking**: mypy or pyright
-- **Formatting**: Black (88 character line length)
-- **Linting**: Ruff or flake8
-- **Testing**: pytest
+### Account History Tools
+- `create_account_history`: Create a new account history entry.
+- `list_account_history`: List account history by entity ID.
+- `get_account_history`: Get account history by interaction ID.
+- `update_account_history`: Update account history entry.
+
+## Configuration
+
+The server requires the following environment variables to be set. You can create a `.env` file in the root directory:
+
+```env
+OCS_API_BASE_URL=https://api.ocs.example.com/v1
+OCS_API_KEY=your-api-key-here
+OCS_API_TIMEOUT=30.0
+LOG_LEVEL=INFO
+```
+
+## Running the Server
+
+This project uses `uv` for dependency management.
+
+### Prerequisites
+- Python 3.11+
+- `uv` installed
+
+### Installation
+
+```bash
+uv sync
+```
+
+### Running
+
+To run the MCP server:
+
+```bash
+uv run python src/server.py
+```
 
 ## Project Structure
 
 ```
 ocs-provisioning-mcp-server/
-├── app-spec-docs/              # API specifications and usage scripts
-│   ├── latest-ocs-provisioning-api.yml
-│   └── usage-scripts/          # Test scripts for API endpoints
-├── .specify/                   # Project governance and templates
-│   ├── memory/                 # Constitution and project memory
-│   └── templates/              # Specification and planning templates
-├── src/                        # MCP server implementation (TBD)
-└── tests/                      # Test suite (TBD)
+├── src/
+│   ├── models/                 # Pydantic data models
+│   │   ├── common.py           # Shared models
+│   │   ├── subscriber.py       # Subscriber models
+│   │   ├── subscription.py     # Subscription models
+│   │   ├── offers.py           # Offers tools
+│   │   ├── balance.py          # Balance tools
+│   │   └── account_history.py  # Account history tools
+│   ├── client.py               # HTTP client wrapper
+│   ├── config.py               # Configuration management
+│   └── server.py               # Main server entry point
+├── tests/                      # Test suite
+├── specs/                      # Project specifications
+├── app-spec-docs/              # API history tools
+│   ├── client.py               # HTTP client wrapper
+│   ├── config.py               # Configuration management
+│   └── server.py               # Main server entry point
+├── tests/                      # Test suite
+├── specs/                      # Project specifications
+├── pyproject.toml              # Project configuration
+└── README.md                   # This file
 ```
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/vasil-yosifov/ocs-provisioning-mcp-server.git
-cd ocs-provisioning-mcp-server
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your OCS API credentials
-```
-
-## Configuration
-
-Required environment variables:
-
-- `OCS_API_URL`: Base URL for the OCS provisioning API
-- `OCS_API_TIMEOUT`: Request timeout in seconds (default: 30)
-
-Configuration files should be placed in a `config/` directory (not in version control).
-
-## Usage
-
-Start the MCP server:
-
-```bash
-python -m src.server
-```
-
-The server will communicate via stdio transport, making it compatible with MCP clients like Claude Desktop.
 
 ## Development
 
-### Code Style
+### Adding New Tools
 
-All code must follow PEP 8 guidelines and project-specific standards:
+1.  Define Pydantic models in `src/models/`.
+2.  Implement tool logic in `src/tools/`.
+3.  Register the tool in `src/server.py`.
 
-- Type hints required on all functions
-- Maximum line length: 88 characters (Black standard)
-- Meaningful variable and function names
-- Docstrings on all public functions and classes
+### Error Handling
 
-See [`.github/instructions/python.instructions.md`](.github/instructions/python.instructions.md) for detailed coding standards.
-
-### Testing
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=src tests/
-
-# Run specific test category
-pytest tests/unit/
-pytest tests/integration/
-```
-
-### Constitution Compliance
-
-All contributions must comply with the project constitution. Key requirements:
-
-1. Use official MCP SDK (no custom JSON-RPC)
-2. Follow tool naming conventions (lowercase_with_underscores)
-3. Implement defensive error handling (no unhandled exceptions)
-4. Externalize all credentials and configuration
-
-## API Reference
-
-The OCS provisioning API specification is documented in `app-spec-docs/latest-ocs-provisioning-api.yml`.
-
-Usage examples and test scripts are available in `app-spec-docs/usage-scripts/`:
-
-- `create-subscriber-tests.sh`
-- `subscriber-lookup-api-tests.sh`
-- `subscriber-patch-api-tests.sh`
-- `subscriber-delete-api-tests.sh`
-- `balance-api-tests.sh`
-- `account-history-api-tests.sh`
-- `subscriptions-api-tests.sh`
-- `transaction-id-tests.sh`
-
-## Contributing
-
-1. Review the constitution at `.specify/memory/constitution.md`
-2. Follow the Python coding standards in `.github/instructions/python.instructions.md`
-3. Create feature specifications using `.specify/templates/spec-template.md`
-4. Implement with constitution compliance
-5. Add tests and verify all pass before submitting
-
-## License
-
-## License
-
-No license information is provided for this project. Use at your own risk.
-
-## Disclaimer
-
-This software is provided "as is" without any warranty or guarantee regarding code quality, functionality, or fitness for any particular purpose. The authors assume no responsibility for any issues arising from the use of this code.
-
-## Support
-
-For issues and questions, please open a GitHub issue in the repository.
+The server implements standardized error handling:
+- `OCSAPIError`: Wraps upstream API errors with status codes and details.
+- All tools return descriptive error messages to the LLM.

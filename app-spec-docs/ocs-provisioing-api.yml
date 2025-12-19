@@ -1,0 +1,2165 @@
+openapi: 3.0.3
+info:
+  title: OCS provisioning
+  version: '1.1'
+  description: 'Breaking change in v1.1: removed top-level collection GET endpoints
+    that returned full lists
+
+    (e.g. GET /subscriptions, GET /balances, GET /groups, GET /notificationAddresses,
+    GET /timers,
+
+    GET /accountHistory). Use the ID-scoped endpoints or collection-specific nested
+    list endpoints
+
+    (for example GET /subscribers/{subscriberId}/subscriptions or GET /accountHistory/{entityId}).
+
+    This change improves API performance and encourages paginated, scoped queries.'
+servers:
+- url: https://provisioning.telco.com/ocs/prov/v1
+paths:
+  /health-check:
+    get:
+      summary: Health check endpoint
+      responses:
+        '200':
+          description: OK
+        '500':
+          description: Service Internal Error
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscribers/lookup:
+    get:
+      summary: Lookup subscriberId by msisdn, imsi or first and last name
+      parameters:
+      - name: msisdn
+        in: query
+        description: MSISDN number to lookup
+        required: false
+        schema:
+          type: string
+      - name: imsi
+        in: query
+        description: IMSI to lookup
+        required: false
+        schema:
+          type: string
+      - name: firstName
+        in: query
+        description: Subscriber first name to lookup (requires lastName)
+        required: false
+        schema:
+          type: string
+      - name: lastName
+        in: query
+        description: Subscriber last name to lookup (requires firstName)
+        required: false
+        schema:
+          type: string
+      - $ref: '#/components/parameters/transactionId'
+      responses:
+        '200':
+          description: SubscriberId found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriberIdResponse'
+              examples:
+                found:
+                  value:
+                    subscriberId: SUB123456789
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /subscribers/:
+    post:
+      summary: Create a subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Subscriber'
+      responses:
+        '201':
+          description: Subscriber created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscriber'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateSubscriber:
+                  value:
+                    code: 409
+                    message: Subscriber already exists
+                    details:
+                      field: msisdn
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscribers/{subscriberId}:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get subscriber by ID
+      responses:
+        '200':
+          description: Subscriber found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscriber'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    patch:
+      summary: Update subscriber partially
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchField'
+            examples:
+              patch:
+                $ref: '#/components/examples/PatchFieldExample'
+      responses:
+        '200':
+          description: Subscriber patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscriber'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/FieldNotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete subscriber
+      responses:
+        '204':
+          description: Subscriber deleted
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscribers/{subscriberId}/state:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    put:
+      summary: Update subscriber state
+      description: Dedicated endpoint for managing subscriber state transitions. Tracks previousState and lastTransitionDate automatically (FR-004). Creates account history entry for state changes (T099).
+      parameters:
+      - name: state
+        in: query
+        required: true
+        description: The new subscriber state
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - SUSPENDED
+          - DEACTIVATED
+          - TERMINATED
+          - PRE_PROVISIONED
+      - $ref: '#/components/parameters/transactionId'
+      responses:
+        '200':
+          description: Subscriber state updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscriber'
+              examples:
+                stateTransition:
+                  value:
+                    subscriberId: a6a62478-f9e9-49f2-a5a9-4ff33d808165
+                    msisdn: '123456789012345'
+                    currentState: active
+                    previousState: pre-provisioned
+                    lastTransitionDate: '2025-12-19T13:14:20.221214625+01:00'
+                    creationDate: '2025-12-19T13:14:08+01:00'
+                    expirationDate: '2037-12-31T23:59:59+01:00'
+                    languageId: EN
+                    subscriberType: PREPAID
+        '400':
+          description: Bad request - invalid state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidState:
+                  value:
+                    code: 400
+                    message: Invalid state value
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /subscribers/{subscriberId}/subscriptions:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List subscriptions for a subscriber
+      responses:
+        '200':
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    post:
+      summary: Create a subscription for subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              '400':
+                $ref: '#/components/responses/BadRequest'
+              $ref: '#/components/schemas/Subscription'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateSubscription:
+                  $ref: '#/components/examples/ConflictDuplicateSubscription'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscribers/{subscriberId}/timers:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    - $ref: '#/components/parameters/limit'
+    - $ref: '#/components/parameters/offset'
+    get:
+      summary: List timers for a subscriber
+      responses:
+        '200':
+          description: List of timers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Timer'
+              examples:
+                timers:
+                  $ref: '#/components/examples/TimerArrayExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    post:
+      summary: Create a timer for subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Timer'
+            examples:
+              timer:
+                $ref: '#/components/examples/TimerExample'
+      responses:
+        '201':
+          description: Timer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+              examples:
+                timer:
+                  $ref: '#/components/examples/TimerExample'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscribers/{subscriberId}/notificationAddresses:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List notification addresses for a subscriber
+      responses:
+        '200':
+          description: List of notification addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationAddress'
+              examples:
+                list:
+                  $ref: '#/components/examples/NotificationAddressArrayExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    post:
+      summary: Create a notification address for subscriber
+      description: Create a notification address for the subscriber. The `notificationAddress`
+        (e.g., msisdn or email) must be unique per subscriber.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationAddress'
+            examples:
+              notificationAddress:
+                $ref: '#/components/examples/NotificationAddressExample'
+      responses:
+        '201':
+          description: Notification address created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAddress'
+              examples:
+                notificationAddress:
+                  $ref: '#/components/examples/NotificationAddressExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscribers/{subscriberId}/notificationAddresses/{notificationAddressId}:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: notificationAddressId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get notification address by ID for a subscriber
+      responses:
+        '200':
+          description: Notification address found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAddress'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    patch:
+      summary: Update notification address partially for a subscriber
+      description: Partially update a notification address. Fields that would violate
+        uniqueness constraints will result in 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchField'
+            examples:
+              patch:
+                $ref: '#/components/examples/PatchFieldExample'
+      responses:
+        '200':
+          description: Notification address patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAddress'
+              examples:
+                notificationAddress:
+                  $ref: '#/components/examples/NotificationAddressExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/FieldNotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete notification address for a subscriber
+      responses:
+        '204':
+          description: Notification address deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscribers/{subscriberId}/timers/{timerId}:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: timerId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get timer by ID for a subscriber
+      responses:
+        '200':
+          description: Timer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    patch:
+      summary: Update timer partially for a subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchField'
+            examples:
+              patch:
+                $ref: '#/components/examples/PatchFieldExample'
+      responses:
+        '200':
+          description: Timer patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+              examples:
+                timer:
+                  $ref: '#/components/examples/TimerExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/FieldNotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions/{subscriptionId}/timers:
+    parameters:
+    - name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+    - $ref: '#/components/parameters/limit'
+    - $ref: '#/components/parameters/offset'
+    get:
+      summary: List timers for a subscription
+      responses:
+        '200':
+          description: List of timers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Timer'
+              examples:
+                timers:
+                  $ref: '#/components/examples/TimerArrayExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    post:
+      summary: Create a timer for subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Timer'
+            examples:
+              timer:
+                $ref: '#/components/examples/TimerExample'
+      responses:
+        '201':
+          description: Timer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+              examples:
+                timer:
+                  $ref: '#/components/examples/TimerExample'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions/{subscriptionId}/timers/{timerId}:
+    parameters:
+    - name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: timerId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get timer by ID for a subscription
+      responses:
+        '200':
+          description: Timer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    patch:
+      summary: Update timer partially for a subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchField'
+            examples:
+              patch:
+                $ref: '#/components/examples/PatchFieldExample'
+      responses:
+        '200':
+          description: Timer patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+              examples:
+                timer:
+                  $ref: '#/components/examples/TimerExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/FieldNotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete timer for a subscription
+      responses:
+        '204':
+          description: Timer deleted
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /groups/{groupId}/timers:
+    parameters:
+    - name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+    - $ref: '#/components/parameters/limit'
+    - $ref: '#/components/parameters/offset'
+    get:
+      summary: List timers for a group
+      responses:
+        '200':
+          description: List of timers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Timer'
+              examples:
+                timers:
+                  $ref: '#/components/examples/TimerArrayExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    post:
+      summary: Create a timer for group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Timer'
+            examples:
+              timer:
+                $ref: '#/components/examples/TimerExample'
+      responses:
+        '201':
+          description: Timer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+              examples:
+                timer:
+                  $ref: '#/components/examples/TimerExample'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /groups/{groupId}/notificationAddresses:
+    parameters:
+    - name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List notification addresses for a group
+      responses:
+        '200':
+          description: List of notification addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationAddress'
+              examples:
+                list:
+                  $ref: '#/components/examples/NotificationAddressArrayExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    post:
+      summary: Create a notification address for group
+      description: Create a notification address for the group. The `notificationAddress`
+        must be unique within the group.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationAddress'
+            examples:
+              notificationAddress:
+                $ref: '#/components/examples/NotificationAddressExample'
+      responses:
+        '201':
+          description: Notification address created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAddress'
+              examples:
+                notificationAddress:
+                  $ref: '#/components/examples/NotificationAddressExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /groups/{groupId}/notificationAddresses/{notificationAddressId}:
+    parameters:
+    - name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: notificationAddressId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get notification address by ID for a group
+      responses:
+        '200':
+          description: Notification address found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAddress'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    patch:
+      summary: Update notification address partially for a group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchField'
+            examples:
+              patch:
+                $ref: '#/components/examples/PatchFieldExample'
+      responses:
+        '200':
+          description: Notification address patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAddress'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/FieldNotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete notification address for a group
+      responses:
+        '204':
+          description: Notification address deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /groups/{groupId}/timers/{timerId}:
+    parameters:
+    - name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: timerId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get timer by ID for a group
+      responses:
+        '200':
+          description: Timer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    patch:
+      summary: Update timer partially for a group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchField'
+            examples:
+              patch:
+                $ref: '#/components/examples/PatchFieldExample'
+      responses:
+        '200':
+          description: Timer patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+              examples:
+                timer:
+                  $ref: '#/components/examples/TimerExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/FieldNotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete timer for a group
+      responses:
+        '204':
+          description: Timer deleted
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions:
+    post:
+      summary: Create subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Subscription'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateSubscription:
+                  $ref: '#/components/examples/ConflictDuplicateSubscription'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions/{subscriptionId}:
+    parameters:
+    - name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get subscription by ID
+      responses:
+        '200':
+          description: Subscription found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    patch:
+      summary: Update subscription partially
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchField'
+            examples:
+              patch:
+                $ref: '#/components/examples/PatchFieldExample'
+      responses:
+        '200':
+          description: Subscription patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/FieldNotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete subscription
+      responses:
+        '204':
+          description: Subscription deleted
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions/{subscriptionId}/activate:
+    parameters:
+    - name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Activate a subscription
+      description: 'Transition subscription state from PENDING or SUSPENDED to ACTIVE.
+
+        Sets activationDate and calculates renewalDate for recurring subscriptions.'
+      responses:
+        '200':
+          description: Subscription activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidTransition:
+                  value:
+                    code: 400
+                    message: Invalid state transition from CANCELLED to ACTIVE
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions/{subscriptionId}/suspend:
+    parameters:
+    - name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Suspend a subscription
+      description: Transition subscription state from ACTIVE to SUSPENDED.
+      responses:
+        '200':
+          description: Subscription suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidTransition:
+                  value:
+                    code: 400
+                    message: Invalid state transition from PENDING to SUSPENDED
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions/{subscriptionId}/cancel:
+    parameters:
+    - name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Cancel a subscription
+      description: Transition subscription state from ACTIVE or SUSPENDED to CANCELLED.
+      responses:
+        '200':
+          description: Subscription cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidTransition:
+                  value:
+                    code: 400
+                    message: Invalid state transition from PENDING to CANCELLED
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions/{subscriptionId}/renew:
+    parameters:
+    - name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      summary: Renew a subscription (increment recurring cycle)
+      description: 'Increment the recurring cycle count for an active subscription.
+
+        Auto-transitions to EXPIRED when recurringCyclesCompleted equals maxRecurringCycles.
+
+        Recalculates renewalDate after cycle increment if not expired.'
+      responses:
+        '200':
+          description: Subscription renewed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Invalid operation (subscription not active)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notActive:
+                  value:
+                    code: 400
+                    message: Cannot increment recurring cycle for subscription in
+                      state SUSPENDED
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /subscriptions/{subscriptionId}/balances:
+    parameters:
+    - name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List balances for a subscription
+      responses:
+        '200':
+          description: List of balances
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Balance'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    post:
+      summary: Create a balance for subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Balance'
+      responses:
+        '201':
+          description: Balance created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Balance'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateBalance:
+                  $ref: '#/components/examples/ConflictDuplicateBalance'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete balance
+      responses:
+        '204':
+          description: Balance deleted
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /groups:
+    post:
+      summary: Create group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Group'
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateGroup:
+                  value:
+                    code: 409
+                    message: Group already exists
+                    details:
+                      field: groupName
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /groups/{groupId}:
+    parameters:
+    - name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get group by ID
+      responses:
+        '200':
+          description: Group found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete group
+      responses:
+        '204':
+          description: Group deleted
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /groups/{groupId}/members:
+    parameters:
+    - name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: List member subscriber IDs for a group
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    post:
+      summary: Add member to group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subscriberId:
+                  type: string
+      responses:
+        '201':
+          description: Member added
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /notificationAddresses:
+    post:
+      summary: Create notification address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationAddress'
+      responses:
+        '201':
+          description: Notification address created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAddress'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateNotificationAddress:
+                  $ref: '#/components/examples/ConflictDuplicateNotificationAddress'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /notificationAddresses/{notificationAddressId}:
+    parameters:
+    - name: notificationAddressId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get notification address by ID
+      responses:
+        '200':
+          description: Notification address found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAddress'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete notification address
+      responses:
+        '204':
+          description: Notification address deleted
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /timers:
+    post:
+      summary: Create timer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Timer'
+            examples:
+              timer:
+                $ref: '#/components/examples/TimerExample'
+      responses:
+        '201':
+          description: Timer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+              examples:
+                timer:
+                  $ref: '#/components/examples/TimerExample'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateTimer:
+                  $ref: '#/components/examples/ConflictDuplicateTimer'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /timers/{timerId}:
+    parameters:
+    - name: timerId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get timer by ID
+      responses:
+        '200':
+          description: Timer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Timer'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete timer
+      responses:
+        '204':
+          description: Timer deleted
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /accountHistory:
+    post:
+      summary: Create an account history interaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountHistory'
+            examples:
+              accountHistory:
+                $ref: '#/components/examples/AccountHistoryExample'
+      responses:
+        '201':
+          description: Account history entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHistory'
+              examples:
+                accountHistory:
+                  $ref: '#/components/examples/AccountHistoryExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateAccountHistory:
+                  $ref: '#/components/examples/ConflictDuplicateAccountHistory'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /accountHistory/entityId/{entityId}:
+    parameters:
+    - name: entityId
+      in: path
+      description: Related entity ID (subscriberId, subscriptionId, etc.) to list
+        history for
+      required: true
+      schema:
+        type: string
+    - $ref: '#/components/parameters/limit'
+    - $ref: '#/components/parameters/offset'
+    get:
+      summary: List account history interactions for a specific entity
+      responses:
+        '200':
+          description: List of account history entries for the entity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountHistory'
+              examples:
+                list:
+                  $ref: '#/components/examples/AccountHistoryArrayExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+  /accountHistory/{interactionId}:
+    parameters:
+    - name: interactionId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Get account history entry by interactionId
+      responses:
+        '200':
+          description: Account history entry found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHistory'
+              examples:
+                accountHistory:
+                  $ref: '#/components/examples/AccountHistoryExample'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    patch:
+      summary: Update account history entry partially
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchField'
+            examples:
+              patch:
+                $ref: '#/components/examples/PatchFieldExample'
+      responses:
+        '200':
+          description: Account history entry patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHistory'
+              examples:
+                accountHistory:
+                  $ref: '#/components/examples/AccountHistoryExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/FieldNotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+    delete:
+      summary: Delete account history entry
+      responses:
+        '204':
+          description: Account history entry deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
+components:
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: Maximum number of items to return
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+    offset:
+      name: offset
+      in: query
+      description: Offset for pagination
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+    transactionId:
+      name: X-Transaction-ID
+      in: header
+      description: Unique transaction ID
+      required: false
+      schema:
+        type: string
+  schemas:
+    Subscriber:
+      type: object
+      properties:
+        subscriberId:
+          type: string
+        businessAccountId:
+          type: string
+        msisdn:
+          type: string
+          description: MSISDN in international format, digits only, prefixed with
+            country code (e.g. 43664123456789)
+          pattern: ^[0-9]{11,15}$
+        imsi:
+          type: string
+          description: IMSI in international format, digits only (e.g. 123456789012345)
+          pattern: ^[0-9]{12,15}$
+        iccId:
+          type: string
+        currentState:
+          type: string
+          enum:
+          - pre-provisioned
+          - active
+          - suspended
+          - deactivated
+          - terminated
+        previousState:
+          type: string
+          enum:
+          - pre-provisioned
+          - active
+          - suspended
+          - deactivated
+          - terminated
+        creationDate:
+          type: string
+          format: date-time
+        lastTransitionDate:
+          type: string
+          format: date-time
+        activationDate:
+          type: string
+          format: date-time
+        expirationDate:
+          type: string
+          format: date-time
+        languageId:
+          type: string
+        carrierId:
+          type: string
+        subscriberType:
+          type: string
+        personalInfo:
+          type: object
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            dateOfBirth:
+              type: string
+              format: date
+            email:
+              type: string
+            contactNumber:
+              type: string
+        billing:
+          type: object
+          properties:
+            billingCycle:
+              type: string
+            billcycleDay:
+              type: integer
+            billingAddress:
+              type: object
+              properties:
+                street:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                zipCode:
+                  type: string
+                country:
+                  type: string
+        groups:
+          type: array
+          items:
+            type: string
+        subscriptions:
+          type: array
+          items:
+            type: string
+        notificationAddresses:
+          type: array
+          items:
+            type: string
+        services:
+          type: object
+          properties:
+            voice:
+              type: boolean
+            sms:
+              type: boolean
+            mms:
+              type: boolean
+            data:
+              type: boolean
+            roaming:
+              type: boolean
+            valueAddedServices:
+              type: array
+              items:
+                type: string
+        customFields:
+          type: object
+          additionalProperties:
+            type: string
+        lastModifiedDate:
+          type: string
+          format: date-time
+        timers:
+          type: array
+          items:
+            type: string
+      required:
+      - subscriberId
+    Subscription:
+      type: object
+      properties:
+        subscriberId:
+          type: string
+        subscriptionId:
+          type: string
+        subscriptionType:
+          type: string
+        offerId:
+          type: string
+        offerName:
+          type: string
+        state:
+          type: string
+          enum:
+          - pending
+          - active
+          - suspended
+          - cancelled
+          - expired
+        creationDate:
+          type: string
+          format: date-time
+        activationDate:
+          type: string
+          format: date-time
+        expirationDate:
+          type: string
+          format: date-time
+        renewalDate:
+          type: string
+          format: date-time
+        recurring:
+          type: boolean
+        paidFlag:
+          type: boolean
+        isGroup:
+          type: boolean
+        maxRecurringCycles:
+          type: integer
+        recurringCyclesCompleted:
+          type: integer
+        cycleLengthUnits:
+          type: integer
+        cycleLengthType:
+          type: string
+        customParameters:
+          type: object
+          additionalProperties:
+            type: string
+        balances:
+          type: array
+          items:
+            type: string
+        lastModifiedDate:
+          type: string
+          format: date-time
+        timers:
+          type: array
+          items:
+            type: string
+      required:
+      - subscriptionId
+    Balance:
+      type: object
+      properties:
+        subscriptionId:
+          type: string
+        balanceId:
+          type: string
+        effectiveDate:
+          type: string
+          format: date-time
+        expirationDate:
+          type: string
+          format: date-time
+        creationDate:
+          type: string
+          format: date-time
+        lastModifiedDate:
+          type: string
+          format: date-time
+        balanceType:
+          type: string
+        unitType:
+          type: string
+          enum:
+          - BYTES
+          - EVENTS
+          - SECONDS
+          - MICROCENTS
+          - MICROUNITS
+        balanceAmount:
+          type: number
+        balanceAvailable:
+          type: number
+        isGroupBalance:
+          type: boolean
+        isRecurring:
+          type: boolean
+        cycleLengthType:
+          type: string
+        cycleLengthUnits:
+          type: integer
+        maxRecurringCycles:
+          type: integer
+        recurringCyclesCompleted:
+          type: integer
+        maxRolloverAmount:
+          type: number
+        rolloverAmount:
+          type: number
+        isRolloverAllowed:
+          type: boolean
+    Group:
+      type: object
+      properties:
+        groupId:
+          type: string
+        groupName:
+          type: string
+        groupType:
+          type: string
+        state:
+          type: string
+          enum:
+          - active
+          - suspended
+          - terminated
+        createdDate:
+          type: string
+          format: date-time
+        modifiedDate:
+          type: string
+          format: date-time
+        expirationDate:
+          type: string
+          format: date-time
+        groupOwner:
+          type: object
+          properties:
+            subscriberId:
+              type: string
+            role:
+              type: string
+              enum:
+              - ADMIN
+              - MEMBER
+            memberSince:
+              type: string
+              format: date-time
+        members:
+          type: array
+          items:
+            type: string
+        subscriptions:
+          type: array
+          items:
+            type: string
+        notificationAddresses:
+          type: array
+          items:
+            type: string
+        settings:
+          type: object
+          properties:
+            maxMembers:
+              type: integer
+            autoRenew:
+              type: boolean
+            quotaDistribution:
+              type: string
+        customFields:
+          type: object
+          additionalProperties:
+            type: string
+        lastModifiedDate:
+          type: string
+          format: date-time
+        timers:
+          type: array
+          items:
+            type: string
+      required:
+      - groupId
+    NotificationAddress:
+      type: object
+      properties:
+        notificationAddressId:
+          type: string
+        notificationType:
+          type: string
+          enum:
+          - SMS
+          - EMAIL
+        notificationAddress:
+          type: string
+          description: Destination address (msisdn or email). For MSISDN use digits-only
+            international format.
+          anyOf:
+          - type: string
+            pattern: ^[0-9]{6,15}$
+          - type: string
+            format: email
+        lastNotificationDate:
+          type: string
+          format: date-time
+        createdDate:
+          type: string
+          format: date-time
+        modifiedDate:
+          type: string
+          format: date-time
+        expirationDate:
+          type: string
+          format: date-time
+      required:
+      - notificationAddressId
+    Timer:
+      type: object
+      properties:
+        timerId:
+          type: string
+        timerEntityId:
+          type: string
+        timerName:
+          type: string
+        timerExecutionRelativePeriod:
+          type: integer
+        timerExecutionDate:
+          type: string
+          format: date-time
+        createdDate:
+          type: string
+          format: date-time
+        modifiedDate:
+          type: string
+          format: date-time
+        expirationDate:
+          type: string
+          format: date-time
+      required:
+      - timerId
+    AccountHistory:
+      type: object
+      properties:
+        interactionId:
+          type: string
+        entityId:
+          type: string
+        entityType:
+          type: string
+          enum:
+          - SUBSCRIBER
+          - GROUP
+          - ACCOUNT
+        creationDate:
+          type: string
+          format: date-time
+        description:
+          type: string
+        direction:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+        statusChangeDate:
+          type: string
+          format: date-time
+        attachment:
+          type: object
+          properties:
+            id:
+              type: string
+            url:
+              type: string
+            type:
+              type: string
+        channel:
+          type: string
+        interactionDate:
+          type: object
+          properties:
+            startDateTime:
+              type: string
+              format: date-time
+            endDateTime:
+              type: string
+              format: date-time
+      required:
+      - interactionId
+      - entityId
+      - entityType
+      - creationDate
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required:
+      - code
+      - message
+    SubscriberIdResponse:
+      type: object
+      properties:
+        subscriberId:
+          type: string
+      required:
+      - subscriberId
+    PatchOperation:
+      type: object
+      description: A single patch operation containing fieldName and fieldValue
+      properties:
+        fieldName:
+          type: string
+          description: JSON field name (dot notation supported for nested fields)
+            to update
+        fieldValue:
+          description: New value for the field. Type is determined by the field being
+            updated (string, number, boolean, object, or array).
+      required:
+      - fieldName
+      - fieldValue
+    PatchField:
+      type: array
+      description: Array of patch objects. Each item must include fieldName and fieldValue.
+      minItems: 1
+      items:
+        $ref: '#/components/schemas/PatchOperation'
+  examples:
+    TimerExample:
+      summary: A sample timer
+      value:
+        timerId: TIMER123456
+        timerEntityId: SUB123456789
+        timerName: OneHourTimer
+        timerExecutionRelativePeriod: 3600
+        timerExecutionDate: '2024-01-20T11:00:00Z'
+        createdDate: '2024-01-20T10:00:00Z'
+        modifiedDate: '2024-01-20T10:00:00Z'
+        expirationDate: '2037-01-20T10:00:00Z'
+    TimerArrayExample:
+      summary: Array of timers
+      value:
+      - $ref: '#/components/examples/TimerExample/value'
+    NotificationAddressExample:
+      summary: A sample notification address
+      value:
+        notificationAddressId: NOTIF123456-SMS-001
+        notificationType: SMS
+        notificationAddress: 43660223456789
+        lastNotificationDate: '2024-01-15T12:00:00Z'
+        createdDate: '2024-01-20T10:00:00Z'
+        modifiedDate: '2024-01-20T10:00:00Z'
+        expirationDate: '2037-01-20T10:00:00Z'
+    NotificationAddressArrayExample:
+      summary: Array of notification addresses
+      value:
+      - $ref: '#/components/examples/NotificationAddressExample/value'
+    BadRequestSubscriber:
+      summary: Validation error creating subscriber
+      value:
+        code: 400
+        message: Invalid subscriber payload
+        details:
+          field: msisdn
+          issue: Missing or invalid MSISDN
+    BadRequestSubscription:
+      summary: Validation error creating subscription
+      value:
+        code: 400
+        message: Invalid subscription payload
+        details:
+          field: subscriptionId
+          issue: Missing subscriptionId or invalid format
+    BadRequestBalance:
+      summary: Validation error creating balance
+      value:
+        code: 400
+        message: Invalid balance payload
+        details:
+          field: balanceAmount
+          issue: Must be a positive number
+    BadRequestTimer:
+      summary: Validation error creating timer
+      value:
+        code: 400
+        message: Invalid timer payload
+        details:
+          field: timerExecutionDate
+          issue: Invalid date format or in the past
+    BadRequestNotificationAddress:
+      summary: Validation error creating notification address
+      value:
+        code: 400
+        message: Invalid notification address payload
+        details:
+          field: notificationAddress
+          issue: Invalid msisdn/email format
+    BadRequestAccountHistory:
+      summary: Validation error creating account history entry
+      value:
+        code: 400
+        message: Invalid accountHistory payload
+        details:
+          field: interactionId
+          issue: Missing or duplicate interactionId
+    AccountHistoryExample:
+      summary: A sample account history interaction
+      value:
+        interactionId: INT-2023-001
+        entityId: '27123456789'
+        entityType: SUBSCRIBER
+        creationDate: '2023-11-14T10:30:00Z'
+        description: Customer inquiry about data bundle
+        direction: inbound
+        reason: Bundle Information Request
+        status: completed
+        statusChangeDate: '2023-11-14T10:45:00Z'
+        attachment:
+          id: ATT-001
+          url: https://example.com/attachments/chat-transcript-001
+          type: chat-transcript
+        channel: CRM
+        interactionDate:
+          startDateTime: '2023-11-14T10:30:00Z'
+          endDateTime: '2023-11-14T10:45:00Z'
+    AccountHistoryArrayExample:
+      summary: Array of account history entries
+      value:
+      - $ref: '#/components/examples/AccountHistoryExample/value'
+    ConflictDuplicateAccountHistory:
+      summary: Conflict example for duplicate account history entry
+      value:
+        code: 409
+        message: Account history entry with this interactionId already exists
+        details:
+          field: interactionId
+          value: INT-2023-001
+    ConflictDuplicateSubscription:
+      summary: Conflict example for duplicate subscription
+      value:
+        code: 409
+        message: Subscription already exists for this subscriber
+        details:
+          field: subscriptionId
+          value: SUBSCRIPTION001
+    ConflictDuplicateBalance:
+      summary: Conflict example for duplicate balance
+      value:
+        code: 409
+        message: Balance already exists for this subscription
+        details:
+          field: balanceId
+          value: BAL123456
+    ConflictDuplicateTimer:
+      summary: Conflict example for duplicate timer
+      value:
+        code: 409
+        message: Timer already exists for this resource
+        details:
+          field: timerId
+          value: TIMER123456
+    ConflictDuplicateNotificationAddress:
+      summary: Conflict example for duplicate notification address
+      value:
+        code: 409
+        message: Notification address already exists for this resource
+        details:
+          field: notificationAddress
+          value: 43660223456789
+    SubscriberIdExample:
+      summary: Example subscriber id response
+      value:
+        subscriberId: SUB123456789
+    PatchFieldExample:
+      summary: Example patch payload
+      value:
+      - fieldName: personalInfo.email
+        fieldValue: user@example.com
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            badRequest:
+              value:
+                code: 400
+                message: Invalid request parameters
+                details: {}
+            subscriberValidation:
+              $ref: '#/components/examples/BadRequestSubscriber'
+            subscriptionValidation:
+              $ref: '#/components/examples/BadRequestSubscription'
+            balanceValidation:
+              $ref: '#/components/examples/BadRequestBalance'
+            timerValidation:
+              $ref: '#/components/examples/BadRequestTimer'
+            notificationAddressValidation:
+              $ref: '#/components/examples/BadRequestNotificationAddress'
+            accountHistoryValidation:
+              $ref: '#/components/examples/BadRequestAccountHistory'
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            conflict:
+              value:
+                code: 409
+                message: Resource conflict
+                details: {}
+            duplicateNotificationAddress:
+              $ref: '#/components/examples/ConflictDuplicateNotificationAddress'
+            duplicateSubscription:
+              $ref: '#/components/examples/ConflictDuplicateSubscription'
+            duplicateBalance:
+              $ref: '#/components/examples/ConflictDuplicateBalance'
+            duplicateTimer:
+              $ref: '#/components/examples/ConflictDuplicateTimer'
+            duplicateAccountHistory:
+              $ref: '#/components/examples/ConflictDuplicateAccountHistory'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            notFound:
+              value:
+                code: 404
+                message: Resource not found
+                details: {}
+    FieldNotFound:
+      description: Field to patch not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            fieldNotFound:
+              value:
+                code: 422
+                message: Field not found
+                details:
+                  field: unknownField
+    SubscriberIdNotFound:
+      description: Subscriber not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            notFound:
+              value:
+                code: 404
+                message: Subscriber not found
+                details: {}
