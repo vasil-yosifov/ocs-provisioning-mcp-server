@@ -109,6 +109,7 @@ async def create_subscriber(
 - The returned `subscriberId` is required for all subsequent subscriber operations (get, updates, deletions)
 - MSISDN uniqueness is automatically enforced - the tool will retry generation if conflicts occur
 - All address fields have Vienna, Austria defaults for convenience
+- Don't assume values for required fields—they must be explicitly provided. If any are missing, ask the user directly. For example, don't infer an email address from a name.
 
 **Use Cases:**
 - Onboarding new customers

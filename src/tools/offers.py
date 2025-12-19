@@ -206,6 +206,210 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
                     "description": "20GB prepaid balance for data service with 10GB rollover"
                 }
             ]
+        },
+        {
+            "offerId": "1011",
+            "offerName": "Premium postpaid plan",
+            "description": "Premium postpaid price plan with enhanced allowances for all services",
+            "price": 24.99,
+            "type": "POSTPAID",
+            "recurring": True,
+            "paid": True,
+            "groupOffer": False,
+            "maxRecurringCycles": None,
+            "cycleLength": 0,
+            "cycleUnit": "MONTH",
+            "balances": [
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 180000,
+                    "unit": "SECONDS",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "MONTH",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 36000,
+                    "description": "50 hours postpaid balance for voice service with 10 hours rollover"
+                },
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 10000,
+                    "unit": "EVENTS",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "MONTH",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 3000,
+                    "description": "10000 events postpaid balance for SMS and MMS services with 3000 events rollover"
+                },
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 53687091200,
+                    "unit": "BYTES",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "MONTH",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 21474836480,
+                    "description": "50GB postpaid balance for data service with 20GB rollover"
+                }
+            ]
+        },
+        {
+            "offerId": "1020",
+            "offerName": "Weekly data bundle 10GB - Postpaid",
+            "description": "Postpaid weekly data bundle – 10GB with rollover",
+            "price": 6.99,
+            "type": "POSTPAID",
+            "recurring": True,
+            "paid": True,
+            "groupOffer": False,
+            "maxRecurringCycles": None,
+            "cycleLength": 4,
+            "cycleUnit": "WEEK",
+            "balances": [
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 10737418240,
+                    "unit": "BYTES",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "WEEK",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 10737418240,
+                    "description": "Postpaid 10GB weekly balance with full rollover"
+                }
+            ]
+        },
+        {
+            "offerId": "1021",
+            "offerName": "Monthly data bundle 50GB - Postpaid",
+            "description": "Postpaid monthly data bundle – 50GB with rollover",
+            "price": 19.99,
+            "type": "POSTPAID",
+            "recurring": True,
+            "paid": True,
+            "groupOffer": False,
+            "maxRecurringCycles": None,
+            "cycleLength": 1,
+            "cycleUnit": "MONTH",
+            "balances": [
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 53687091200,
+                    "unit": "BYTES",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "MONTH",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 26843545600,
+                    "description": "Postpaid 50GB monthly balance with 25GB rollover"
+                }
+            ]
+        },
+        {
+            "offerId": "1030",
+            "offerName": "Voice bundle 500 minutes - Postpaid",
+            "description": "Additional 500 minutes voice bundle for postpaid subscribers",
+            "price": 5.99,
+            "type": "POSTPAID",
+            "recurring": True,
+            "paid": True,
+            "groupOffer": False,
+            "maxRecurringCycles": None,
+            "cycleLength": 1,
+            "cycleUnit": "MONTH",
+            "balances": [
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 30000,
+                    "unit": "SECONDS",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "MONTH",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 15000,
+                    "description": "500 minutes (30000 seconds) voice balance with 250 minutes rollover"
+                }
+            ]
+        },
+        {
+            "offerId": "1031",
+            "offerName": "Voice bundle 1000 minutes - Postpaid",
+            "description": "Additional 1000 minutes voice bundle for postpaid subscribers",
+            "price": 9.99,
+            "type": "POSTPAID",
+            "recurring": True,
+            "paid": True,
+            "groupOffer": False,
+            "maxRecurringCycles": None,
+            "cycleLength": 1,
+            "cycleUnit": "MONTH",
+            "balances": [
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 60000,
+                    "unit": "SECONDS",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "MONTH",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 30000,
+                    "description": "1000 minutes (60000 seconds) voice balance with 500 minutes rollover"
+                }
+            ]
+        },
+        {
+            "offerId": "1040",
+            "offerName": "SMS/MMS bundle 1000 messages - Postpaid",
+            "description": "Additional 1000 SMS/MMS messages bundle for postpaid subscribers",
+            "price": 3.99,
+            "type": "POSTPAID",
+            "recurring": True,
+            "paid": True,
+            "groupOffer": False,
+            "maxRecurringCycles": None,
+            "cycleLength": 1,
+            "cycleUnit": "MONTH",
+            "balances": [
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 1000,
+                    "unit": "EVENTS",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "MONTH",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 500,
+                    "description": "1000 SMS/MMS events balance with 500 messages rollover"
+                }
+            ]
+        },
+        {
+            "offerId": "1041",
+            "offerName": "SMS/MMS bundle 2500 messages - Postpaid",
+            "description": "Additional 2500 SMS/MMS messages bundle for postpaid subscribers",
+            "price": 7.99,
+            "type": "POSTPAID",
+            "recurring": True,
+            "paid": True,
+            "groupOffer": False,
+            "maxRecurringCycles": None,
+            "cycleLength": 1,
+            "cycleUnit": "MONTH",
+            "balances": [
+                {
+                    "type": "ALLOWANCE",
+                    "amount": 2500,
+                    "unit": "EVENTS",
+                    "recurring": True,
+                    "cycleLength": 1,
+                    "cycleUnit": "MONTH",
+                    "rolloverAllowed": True,
+                    "maxRolloverAmount": 1000,
+                    "description": "2500 SMS/MMS events balance with 1000 messages rollover"
+                }
+            ]
         }
     ]
 
@@ -262,6 +466,7 @@ A JSON-formatted list of available offers, where each offer includes:
 - **Subscriber type must match offer type**: PREPAID subscribers can only use PREPAID offers, and POSTPAID subscribers can only use POSTPAID offers
 - Always verify subscriber type before recommending or assigning offers
 - Bundle offers may include multiple services at discounted rates
+- Available offers include base plans (1000-1011), data bundles (1002-1003, 1020-1021), voice bundles (1030-1031), and SMS/MMS bundles (1040-1041)
 
 **Example Usage:**
 ```
@@ -331,9 +536,9 @@ If the offer is not found, returns an error message in JSON format.
 
 **Important Notes:**
 - **Type Matching**: Ensure the returned offer type matches the subscriber type before creating subscriptions
-- **Available Offers**: Valid offerIds are: "1000", "1001", "1002", "1003", "1010"
-- **PREPAID Offers**: 1000, 1002, 1003, 1010
-- **POSTPAID Offers**: 1001
+- **Available Offers**: Valid offerIds are: "1000", "1001", "1002", "1003", "1010", "1011", "1020", "1021", "1030", "1031", "1040", "1041"
+- **PREPAID Offers**: 1000 (basic), 1002 (data 5GB), 1003 (data 25GB), 1010 (premium)
+- **POSTPAID Offers**: 1001 (basic), 1011 (premium), 1020 (data 10GB), 1021 (data 50GB), 1030 (voice 500min), 1031 (voice 1000min), 1040 (SMS 1000), 1041 (SMS 2500)
 - **Not Found**: Returns error JSON if offerId doesn't exist in catalog
 
 **Example Usage:**
@@ -379,6 +584,6 @@ This tool is particularly useful when creating subscriptions, as it provides all
         error_response = {
             "error": "Offer not found",
             "message": f"No offer found with offerId: {offerId}",
-            "availableOfferIds": ["1000", "1001", "1002", "1003", "1010"]
+            "availableOfferIds": ["1000", "1001", "1002", "1003", "1010", "1011", "1020", "1021", "1030", "1031", "1040", "1041"]
         }
         return json.dumps(error_response, indent=2)

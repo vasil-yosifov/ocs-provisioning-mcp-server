@@ -155,6 +155,62 @@ paths:
           description: Subscriber deleted
       parameters:
       - $ref: '#/components/parameters/transactionId'
+  /subscribers/{subscriberId}/state:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    put:
+      summary: Update subscriber state
+      description: Dedicated endpoint for managing subscriber state transitions. Tracks previousState and lastTransitionDate automatically (FR-004). Creates account history entry for state changes (T099).
+      parameters:
+      - name: state
+        in: query
+        required: true
+        description: The new subscriber state
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - SUSPENDED
+          - DEACTIVATED
+          - TERMINATED
+          - PRE_PROVISIONED
+      - $ref: '#/components/parameters/transactionId'
+      responses:
+        '200':
+          description: Subscriber state updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscriber'
+              examples:
+                stateTransition:
+                  value:
+                    subscriberId: a6a62478-f9e9-49f2-a5a9-4ff33d808165
+                    msisdn: '123456789012345'
+                    currentState: active
+                    previousState: pre-provisioned
+                    lastTransitionDate: '2025-12-19T13:14:20.221214625+01:00'
+                    creationDate: '2025-12-19T13:14:08+01:00'
+                    expirationDate: '2037-12-31T23:59:59+01:00'
+                    languageId: EN
+                    subscriberType: PREPAID
+        '400':
+          description: Bad request - invalid state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidState:
+                  value:
+                    code: 400
+                    message: Invalid state value
+        '404':
+          $ref: '#/components/responses/NotFound'
   /subscribers/{subscriberId}/subscriptions:
     parameters:
     - name: subscriberId
