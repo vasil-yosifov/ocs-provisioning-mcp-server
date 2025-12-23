@@ -384,3 +384,177 @@ async def delete_subscriber(
     await ocs_client.delete(f"/subscribers/{subscriber_id}", transaction_id=transaction_id)
     logger.info(f"delete_subscriber completed for {subscriber_id}")
     return f"Subscriber {subscriber_id} deleted successfully"
+
+async def change_subscriber_state(
+    subscriber_id: str,
+    state: str,
+    transaction_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+**Tool Name:** Change Subscriber State
+
+**Purpose:** Manages subscriber lifecycle by transitioning between operational states. This dedicated endpoint tracks state transitions automatically and creates audit trail entries for compliance and operational tracking.
+
+**Required Parameters:**
+- `subscriber_id` (string): The unique subscriber identifier
+  - **Note:** Use `lookup_subscriber` to find subscriberId if you only have MSISDN, IMSI, or name
+- `state` (string): The new subscriber state to transition to. Must be one of:
+  - **"ACTIVE"**: Subscriber is active and can use services
+  - **"SUSPENDED"**: Subscriber is temporarily suspended (e.g., payment issues, fraud prevention)
+  - **"DEACTIVATED"**: Subscriber is deactivated but account remains (can be reactivated)
+  - **"TERMINATED"**: Subscriber is permanently terminated (account closure)
+  - **"PRE_PROVISIONED"**: Subscriber is pre-provisioned but not yet activated
+
+**Optional Parameters:**
+- `transaction_id` (string): Custom transaction identifier for tracking/logging purposes
+
+**Automatic Tracking:**
+This endpoint automatically tracks and updates:
+- `currentState`: Set to the new state provided
+- `previousState`: Automatically saved before transition
+- `lastTransitionDate`: Timestamp of the state change
+- **Account History**: Creates an automatic audit entry for the state change (requirement T099)
+
+**Valid State Transitions:**
+
+*From PRE_PROVISIONED:*
+- → ACTIVE: Initial activation of subscriber
+- → TERMINATED: Cancel before activation
+
+*From ACTIVE:*
+- → SUSPENDED: Temporary service suspension (payment issues, fraud, customer request)
+- → DEACTIVATED: Service deactivation (voluntary or administrative)
+- → TERMINATED: Permanent account termination
+
+*From SUSPENDED:*
+- → ACTIVE: Restore service after suspension resolved
+- → DEACTIVATED: Move to deactivated state
+- → TERMINATED: Permanent termination from suspended state
+
+*From DEACTIVATED:*
+- → ACTIVE: Reactivate deactivated subscriber
+- → TERMINATED: Permanent termination from deactivated state
+
+*From TERMINATED:*
+- No transitions allowed (terminal state)
+
+**Returns:**
+- Success (200): Complete subscriber object with updated state information including:
+  - `currentState`: The new state
+  - `previousState`: The state before transition
+  - `lastTransitionDate`: Timestamp of the transition
+  - All other subscriber fields
+- Error (400): Bad request - invalid state value
+- Error (404): Subscriber not found
+- Error (422): Invalid state transition (business rules violation)
+
+**Use Cases:**
+1. **Service Activation**: Transition PRE_PROVISIONED → ACTIVE when onboarding completes
+2. **Payment Issues**: Transition ACTIVE → SUSPENDED when payment fails
+3. **Service Restoration**: Transition SUSPENDED → ACTIVE when payment received
+4. **Voluntary Deactivation**: Transition ACTIVE → DEACTIVATED for temporary service stop
+5. **Fraud Prevention**: Transition ACTIVE → SUSPENDED for security investigation
+6. **Account Closure**: Transition ACTIVE/SUSPENDED/DEACTIVATED → TERMINATED for permanent closure
+7. **Reactivation**: Transition DEACTIVATED → ACTIVE when subscriber returns
+
+**Important Notes:**
+- **Automatic Audit Trail**: Every state change automatically creates an account history entry (T099)
+- **State Tracking**: System automatically tracks previousState and transition timestamp (FR-004)
+- **Terminal State**: TERMINATED is a final state - no further transitions possible
+- **Service Impact**: State transitions may immediately affect service availability
+- **Business Rules**: Some transitions may be restricted by business logic (e.g., direct PRE_PROVISIONED → TERMINATED might require approval)
+
+**Workflow Examples:**
+
+*Example 1: New Subscriber Activation*
+```
+1. Subscriber created with state PRE_PROVISIONED
+2. Complete onboarding validation
+3. Call change_subscriber_state(subscriberId, "ACTIVE")
+4. Subscriber services become available
+5. Account history entry automatically created
+```
+
+*Example 2: Payment Suspension and Restoration*
+```
+1. Payment fails for ACTIVE subscriber
+2. Call change_subscriber_state(subscriberId, "SUSPENDED")
+3. Services suspended, previousState saved as ACTIVE
+4. Payment received and verified
+5. Call change_subscriber_state(subscriberId, "ACTIVE")
+6. Services restored
+```
+
+*Example 3: Account Closure*
+```
+1. Subscriber requests account closure
+2. Call change_subscriber_state(subscriberId, "TERMINATED")
+3. Account permanently closed
+4. Audit trail entry created with reason
+5. No further state transitions possible
+```
+
+*Example 4: Reactivating Existing Subscriber*
+```
+1. Subscriber with DEACTIVATED state requests service reactivation
+2. Verify subscriber details with get_subscriber(subscriberId)
+3. Confirm current state is DEACTIVATED
+4. Call change_subscriber_state(subscriberId, "ACTIVE")
+5. Services restored, subscriber can use all active subscriptions
+6. previousState saved as DEACTIVATED, lastTransitionDate updated
+7. Account history entry automatically created
+```
+
+*Example 5: Activating Pre-Provisioned Existing Subscriber*
+```
+1. Subscriber already exists in system with PRE_PROVISIONED state
+2. Lookup subscriber: lookup_subscriber(msisdn="43660123456")
+3. Get full details: get_subscriber(subscriberId)
+4. Verify state is PRE_PROVISIONED and all required data is complete
+5. Complete activation requirements (SIM activation, payment verification, etc.)
+6. Call change_subscriber_state(subscriberId, "ACTIVE")
+7. Subscriber activated, services become available
+8. previousState saved as PRE_PROVISIONED, activationDate set
+9. Account history entry automatically created
+```
+
+**Error Handling:**
+- Invalid state value: Returns 400 with list of valid states
+- Subscriber not found: Returns 404 with error details
+- Invalid transition: Returns 422 with business rule violation details
+- Ensure state parameter exactly matches enum values (case-sensitive)
+
+**Best Practices:**
+1. Always verify current subscriber state before transitions using `get_subscriber`
+2. Document business reason for state changes in surrounding workflow
+3. Confirm critical transitions (especially TERMINATED) with users
+4. Use SUSPENDED for temporary issues, DEACTIVATED for voluntary stops, TERMINATED for permanent closure
+5. Monitor automatic account history entries for audit compliance
+6. Consider impact on active services before state transitions
+7. Validate business rules and approval requirements for sensitive transitions
+
+**Comparison with update_subscriber:**
+- **Use change_subscriber_state when**: Changing subscriber operational state with automatic tracking
+- **Use update_subscriber when**: Changing other subscriber fields (email, address, etc.)
+- **Advantage**: Automatic previousState tracking, lastTransitionDate, and audit history creation
+    """
+    if transaction_id is None:
+        transaction_id = str(uuid.uuid4())
+    
+    # Validate state parameter
+    valid_states = ["ACTIVE", "SUSPENDED", "DEACTIVATED", "TERMINATED", "PRE_PROVISIONED"]
+    if state not in valid_states:
+        logger.error(f"Invalid state: {state}. Must be one of {valid_states}")
+        return {
+            "error": f"Invalid state '{state}'. Must be one of: {', '.join(valid_states)}"
+        }
+    
+    logger.info(f"change_subscriber_state called for subscriber {subscriber_id} with state: {state}")
+    result = await ocs_client.request(
+        method="PUT",
+        endpoint=f"/subscribers/{subscriber_id}/state",
+        params={"state": state},
+        transaction_id=transaction_id
+    )
+    logger.info(f"change_subscriber_state result: {result}")
+    return result

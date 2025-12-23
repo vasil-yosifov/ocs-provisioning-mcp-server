@@ -4,7 +4,8 @@ from src.tools.subscriber import (
     create_subscriber,
     get_subscriber,
     update_subscriber,
-    delete_subscriber
+    delete_subscriber,
+    change_subscriber_state
 )
 from src.tools.subscription import (
     create_subscription,
@@ -64,6 +65,7 @@ mcp.add_tool(get_subscriber)
 mcp.add_tool(update_subscriber)
 mcp.add_tool(delete_subscriber)
 mcp.add_tool(lookup_subscriber)
+mcp.add_tool(change_subscriber_state)
 
 # Register Subscription Tools
 mcp.add_tool(create_subscription)
