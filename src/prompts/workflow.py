@@ -528,3 +528,560 @@ list_balances("SUB-20251223-143000-ABC123")
 4. `create_balance(subscriptionId, balance)` - Create each balance (repeat for voice/SMS/data)
 5. `change_subscription_state(subscriptionId, "active")` - Activate
 """
+
+async def analyse_subscriber_account(subscriberId: str) -> str:
+    """
+    Comprehensive workflow guidance for analyzing a subscriber's account status, including correlating
+    subscriptions, balances, and usage patterns.
+    
+    Args:
+        subscriberId: The ID of the subscriber whose account to analyze
+    
+    Returns:
+        Detailed analysis workflow instructions for comprehensive account review
+    """
+    logger.debug(f"Generating account analysis workflow for subscriberId={subscriberId}")
+    
+    return f"""
+# Complete Workflow: Analyze Subscriber Account
+
+**Context:**
+- Subscriber ID: {subscriberId}
+
+## Purpose
+This workflow guides you through a comprehensive analysis of a subscriber's account by collecting all relevant data 
+(profile, subscriptions, balances, usage, account history) and analyzing correlations between service subscriptions, 
+their corresponding balances, and actual usage patterns. This analysis is essential for:
+- Customer support inquiries
+- Billing verification and dispute resolution
+- Usage pattern analysis and recommendations
+- Service health monitoring
+- Fraud detection
+- Account optimization opportunities
+
+**Important:** This is guidance only. Execute the workflow by calling the individual tools in sequence and building 
+your analysis from the collected data.
+
+## Complete Analysis Workflow
+
+### Phase 1: Data Collection
+
+#### Step 1: Retrieve Subscriber Profile
+**Call:** `get_subscriber(subscriberId="{subscriberId}")`
+
+**Data to Extract:**
+- `subscriberId`: Unique subscriber identifier
+- `subscriberType`: PREPAID or POSTPAID
+- `state`: Subscriber status (active, suspended, terminated)
+- `personalInfo`: Name, contact details, addresses
+- `msisdn`: Primary phone number
+- `imsi`: SIM card identifier
+- `subscriptions`: Array of subscription objects (each contains subscriptionId)
+- `activationDate`: When subscriber was activated
+- `terminationDate`: If subscriber was terminated
+
+**Analysis Points:**
+- Verify subscriber is in expected state (active vs suspended)
+- Check if subscriber type matches subscription types
+- Note primary contact information for context
+
+---
+
+#### Step 2: Retrieve Account History
+**Call:** `get_account_history(entityId="{subscriberId}")`
+
+**Data to Extract:**
+- Complete timeline of account events
+- Subscription creations and activations
+- Balance provisioning events
+- State changes (activations, suspensions, terminations)
+- Service modifications
+- Payment events (if present)
+
+**Analysis Points:**
+- Build chronological timeline of account activity
+- Identify recent changes that might explain current state
+- Look for patterns (e.g., repeated suspensions, frequent plan changes)
+- Note any error or failed operations
+
+---
+
+#### Step 3: Analyze Each Subscription
+
+For each subscription found in Step 1, execute the following:
+
+**Call 3a:** `get_subscription(subscriptionId="[subscriptionId]")`
+
+**Data to Extract:**
+- `subscriptionId`: Unique subscription identifier
+- `offerId` & `offerName`: What plan/offer this subscription is based on
+- `subscriptionType`: PREPAID or POSTPAID
+- `state`: Subscription status (pending, active, suspended, terminated)
+- `activationDate`: When subscription became active
+- `expirationDate`: When subscription expires/expired
+- `recurring`: Whether subscription auto-renews
+- `cycleLengthUnits` & `cycleLengthType`: Billing cycle (e.g., 1 MONTH)
+- `maxRecurringCycles`: Maximum renewal cycles
+- `recurringCyclesCompleted`: How many cycles completed
+
+**Call 3b:** `list_balances(subscriptionId="[subscriptionId]")`
+
+**Data to Extract for Each Balance:**
+- `balanceId`: Unique balance identifier
+- `balanceType`: Type of balance (ALLOWANCE, CREDIT, etc.)
+- `unitType`: SECONDS (voice), EVENTS (SMS/MMS), BYTES (data)
+- `balanceAmount`: Total allocated balance
+- `balanceAvailable`: Currently remaining balance
+- `balanceConsumed`: Calculated as (balanceAmount - balanceAvailable)
+- `consumptionPercentage`: Calculated as (balanceConsumed / balanceAmount × 100%)
+- `effectiveDate`: When balance became active
+- `expirationDate`: When balance expires
+- `isRecurring`: Whether balance renews automatically
+- `cycleLengthType` & `cycleLengthUnits`: Renewal cycle
+- `isRolloverAllowed` & `maxRolloverAmount`: Rollover configuration
+- `rolloverAmount`: Amount rolled over from previous cycle
+
+**Call 3c:** `list_usage_for_subscriber(subscriberId="{subscriberId}", limit=100, offset=0)`
+
+**Data to Extract:**
+- All usage records (paginate if necessary)
+- For each usage record:
+  - `usageId`: Unique usage record identifier
+  - `usageTimestamp`: When usage occurred
+  - `usageType`: VOICE, DATA, SMS, or MMS
+  - `recordType`: START, INTERIM, STOP, EVENT
+  - `volumeUsage`: Amount consumed (seconds/bytes/events)
+  - `impactedBalanceId`: Which balance was charged
+  - `balanceValueBefore`: Balance before this usage
+  - `balanceValueAfter`: Balance after this usage
+  - `aParty` & `bParty`: Call/session parties
+  - `durationSeconds`: Session duration (for voice/data)
+  - `offerId`: Associated offer
+
+**Analysis Strategy:**
+- Group usage records by usageType (VOICE, DATA, SMS, MMS)
+- Match usage records to their impacted balances
+- Calculate usage patterns (daily, peak hours, etc.)
+- Identify any usage that couldn't be charged (errors, insufficient balance)
+
+---
+
+### Phase 2: Correlation Analysis
+
+#### Subscription-to-Balance Correlation
+
+For each subscription, verify:
+
+1. **Balance Completeness Check:**
+   - Does subscription have expected balances based on offer?
+   - Expected balances for typical offers:
+     - Voice balance (unitType: SECONDS)
+     - SMS/MMS balance (unitType: EVENTS)
+     - Data balance (unitType: BYTES)
+   - Flag missing balances that should exist per offer definition
+
+2. **Balance Health Check:**
+   - Are all balances within their validity period (effectiveDate ≤ now ≤ expirationDate)?
+   - Are any balances expired but still showing as active?
+   - For recurring balances: Are they renewing correctly?
+
+3. **Balance Allocation Analysis:**
+   - Compare initial allocation (balanceAmount) vs current available (balanceAvailable)
+   - Calculate consumption: `consumed = balanceAmount - balanceAvailable`
+   - Calculate consumption percentage: `consumptionPct = (consumed / balanceAmount) × 100%`
+   - Categorize consumption:
+     - Low: 0-25% consumed
+     - Moderate: 26-50% consumed
+     - High: 51-75% consumed
+     - Critical: 76-100% consumed
+     - Overdrawn: >100% consumed (if overdraft allowed)
+
+4. **Rollover Analysis (if applicable):**
+   - Check if rollover is configured (`isRolloverAllowed = true`)
+   - Verify `rolloverAmount` matches expected amount from previous cycle
+   - Calculate total available including rollover: `total = balanceAvailable + rolloverAmount`
+
+---
+
+#### Balance-to-Usage Correlation
+
+For each balance, analyze its usage patterns:
+
+1. **Usage Matching:**
+   - Filter usage records where `impactedBalanceId` matches current balance
+   - Verify `usageType` matches balance `unitType`:
+     - VOICE usage → SECONDS balance
+     - DATA usage → BYTES balance
+     - SMS/MMS usage → EVENTS balance
+   - Flag any mismatches as potential data inconsistencies
+
+2. **Usage Volume Analysis:**
+   - Sum total `volumeUsage` for all records impacting this balance
+   - Verify sum matches balance consumption: `Σ(volumeUsage) ≈ (balanceAmount - balanceAvailable)`
+   - Flag discrepancies exceeding acceptable threshold (e.g., >1% difference)
+
+3. **Usage Pattern Analysis:**
+   - Calculate daily average usage
+   - Identify peak usage periods (time of day, day of week)
+   - Detect unusual usage patterns:
+     - Sudden spikes in usage
+     - Usage during unusual hours
+     - Abnormally long sessions
+     - High-frequency small transactions
+
+4. **Balance Depletion Prediction:**
+   - Calculate average daily consumption rate
+   - Calculate days until balance exhaustion: `daysRemaining = balanceAvailable / dailyAvgConsumption`
+   - Compare with expiration date to determine if balance will be exhausted before expiration
+   - Categorize risk:
+     - Low Risk: Will exhaust after expiration date (normal)
+     - Medium Risk: Will exhaust 1-7 days before expiration
+     - High Risk: Will exhaust >7 days before expiration
+
+---
+
+#### Cross-Service Analysis
+
+Analyze patterns across all services:
+
+1. **Service Usage Distribution:**
+   - Calculate percentage of activity per service:
+     - Voice: `Σ(VOICE usage) / total consumption`
+     - Data: `Σ(DATA usage) / total consumption`
+     - SMS/MMS: `Σ(SMS+MMS usage) / total consumption`
+   - Identify primary service (highest usage)
+   - Identify underutilized services (low usage relative to allocation)
+
+2. **Offer Suitability Analysis:**
+   - Compare allocated balances to actual usage patterns
+   - Identify over-provisioning: High allocation but low usage
+   - Identify under-provisioning: High usage relative to allocation, frequent exhaustion
+   - Suggest alternative offers better matching usage profile
+
+3. **Cost Efficiency Analysis (if pricing data available):**
+   - Calculate cost per unit consumed
+   - Compare to alternative offers
+   - Identify cost optimization opportunities
+
+---
+
+### Phase 3: Generate Comprehensive Analysis Report
+
+#### Account Summary Section
+
+```
+SUBSCRIBER ACCOUNT ANALYSIS REPORT
+Generated: [current timestamp]
+Subscriber ID: {subscriberId}
+Subscriber Type: [PREPAID/POSTPAID]
+Account State: [active/suspended/terminated]
+Primary MSISDN: [phone number]
+Account Age: [days since activation]
+
+SUBSCRIPTIONS SUMMARY:
+- Total Active Subscriptions: [count]
+- Total Suspended Subscriptions: [count]
+- Total Terminated Subscriptions: [count]
+```
+
+#### Subscription Details Section
+
+For each subscription:
+
+```
+SUBSCRIPTION: [subscriptionId]
+  Offer: [offerName] (ID: [offerId])
+  Type: [PREPAID/POSTPAID]
+  State: [state]
+  Status: [Active/Expired/Expiring Soon]
+  Activation Date: [date]
+  Expiration Date: [date]
+  Days Until Expiration: [calculated]
+  Recurring: [yes/no]
+  Cycle: [cycleLengthUnits] [cycleLengthType]
+  Cycles Completed: [recurringCyclesCompleted]
+
+  BALANCES:
+  
+  Voice Balance (SECONDS):
+    Balance ID: [balanceId]
+    Allocated: [balanceAmount] seconds ([converted to hours])
+    Available: [balanceAvailable] seconds ([converted to hours])
+    Consumed: [consumed] seconds ([converted to hours])
+    Consumption: [consumptionPct]%
+    Rollover: [rolloverAmount if applicable]
+    Status: [Low/Moderate/High/Critical consumption]
+    Expiration: [expirationDate]
+    Days Remaining: [days]
+    Est. Exhaustion: [predicted date based on usage rate]
+    
+  SMS/MMS Balance (EVENTS):
+    Balance ID: [balanceId]
+    Allocated: [balanceAmount] messages
+    Available: [balanceAvailable] messages
+    Consumed: [consumed] messages
+    Consumption: [consumptionPct]%
+    Rollover: [rolloverAmount if applicable]
+    Status: [Low/Moderate/High/Critical consumption]
+    Expiration: [expirationDate]
+    Days Remaining: [days]
+    Est. Exhaustion: [predicted date based on usage rate]
+    
+  Data Balance (BYTES):
+    Balance ID: [balanceId]
+    Allocated: [balanceAmount] bytes ([converted to GB])
+    Available: [balanceAvailable] bytes ([converted to GB])
+    Consumed: [consumed] bytes ([converted to GB])
+    Consumption: [consumptionPct]%
+    Rollover: [rolloverAmount if applicable]
+    Status: [Low/Moderate/High/Critical consumption]
+    Expiration: [expirationDate]
+    Days Remaining: [days]
+    Est. Exhaustion: [predicted date based on usage rate]
+```
+
+#### Usage Analysis Section
+
+```
+USAGE ANALYSIS:
+
+Total Usage Records: [count]
+Analysis Period: [first usage date] to [last usage date]
+
+Usage Distribution:
+  - Voice Calls: [count] calls, [total seconds] seconds ([hours] hours)
+  - Data Sessions: [count] sessions, [total bytes] bytes ([GB] GB)
+  - SMS Messages: [count] messages
+  - MMS Messages: [count] messages
+
+Daily Average Usage:
+  - Voice: [avg] seconds/day ([hours] hours/day)
+  - Data: [avg] bytes/day ([MB/GB] per day)
+  - SMS/MMS: [avg] messages/day
+
+Peak Usage Patterns:
+  - Heaviest usage day: [date] ([usage details])
+  - Most active hour: [hour range]
+  - Most active day of week: [day]
+
+Recent Usage (Last 7 Days):
+  [List recent significant usage events]
+```
+
+#### Correlation Findings Section
+
+```
+BALANCE-USAGE CORRELATION:
+
+Voice Balance Correlation:
+  - Usage records matched to balance: [count]
+  - Total usage volume: [sum of volumeUsage]
+  - Balance deduction: [balanceAmount - balanceAvailable]
+  - Correlation accuracy: [percentage match]
+  - Discrepancies: [list any issues]
+
+Data Balance Correlation:
+  - Usage records matched to balance: [count]
+  - Total usage volume: [sum of volumeUsage]
+  - Balance deduction: [balanceAmount - balanceAvailable]
+  - Correlation accuracy: [percentage match]
+  - Discrepancies: [list any issues]
+
+SMS/MMS Balance Correlation:
+  - Usage records matched to balance: [count]
+  - Total usage volume: [sum of volumeUsage]
+  - Balance deduction: [balanceAmount - balanceAvailable]
+  - Correlation accuracy: [percentage match]
+  - Discrepancies: [list any issues]
+```
+
+#### Issues and Alerts Section
+
+```
+ISSUES AND ALERTS:
+
+Critical Issues:
+  - [List any critical problems requiring immediate attention]
+  - Examples: Expired balances, negative balances, correlation mismatches >5%
+
+Warnings:
+  - [List warnings requiring attention]
+  - Examples: Balances exhausting soon, high consumption rates, approaching limits
+
+Anomalies:
+  - [List unusual patterns or behaviors]
+  - Examples: Usage spikes, off-hours activity, unusual destinations
+```
+
+#### Recommendations Section
+
+```
+RECOMMENDATIONS:
+
+Service Optimization:
+  - [Suggest plan changes based on usage patterns]
+  - [Identify underutilized services to reduce costs]
+  - [Identify over-consumed services needing upgrades]
+
+Balance Management:
+  - [Suggest balance adjustments]
+  - [Recommend rollover configuration changes]
+  - [Suggest top-up timing for prepaid]
+
+Usage Efficiency:
+  - [Provide tips to optimize consumption]
+  - [Suggest alternative usage patterns to save money]
+
+Account Health:
+  - [Recommend any account maintenance actions]
+  - [Suggest proactive measures to prevent issues]
+```
+
+---
+
+### Analysis Checklist
+
+Ensure your analysis covers all key areas:
+
+- ✓ Subscriber profile retrieved and verified
+- ✓ Account history timeline reviewed
+- ✓ All subscriptions identified and analyzed
+- ✓ All balances checked for completeness and validity
+- ✓ Usage records collected and grouped by type
+- ✓ Balance consumption calculated and categorized
+- ✓ Usage-to-balance correlation verified
+- ✓ Usage patterns analyzed (daily avg, peaks, anomalies)
+- ✓ Balance exhaustion predictions calculated
+- ✓ Service distribution analyzed
+- ✓ Offer suitability assessed
+- ✓ Issues and alerts identified
+- ✓ Recommendations provided
+
+---
+
+### Key Metrics to Calculate
+
+**Balance Health Metrics:**
+```
+consumption_percentage = (balanceAmount - balanceAvailable) / balanceAmount × 100%
+days_until_expiration = (expirationDate - currentDate).days
+daily_consumption_rate = total_consumed / days_since_effective
+days_until_exhaustion = balanceAvailable / daily_consumption_rate
+```
+
+**Usage Pattern Metrics:**
+```
+total_usage_by_type = Σ(volumeUsage) grouped by usageType
+daily_average_usage = total_usage / number_of_days
+peak_usage_hour = hour with highest Σ(volumeUsage)
+usage_distribution_pct = (usage_by_type / total_usage) × 100%
+```
+
+**Correlation Metrics:**
+```
+expected_consumption = Σ(volumeUsage for impactedBalanceId)
+actual_consumption = balanceAmount - balanceAvailable
+correlation_accuracy = (1 - |expected - actual| / expected) × 100%
+```
+
+---
+
+### Example Analysis Output
+
+```
+SUBSCRIBER ACCOUNT ANALYSIS REPORT
+Generated: 2026-01-05T15:30:00Z
+Subscriber ID: {subscriberId}
+Subscriber Type: PREPAID
+Account State: active
+Primary MSISDN: +436608921226
+Account Age: 45 days since activation
+
+SUBSCRIPTIONS SUMMARY:
+- Total Active Subscriptions: 1
+- Total Suspended Subscriptions: 0
+- Total Terminated Subscriptions: 0
+
+SUBSCRIPTION: 0bf31838-f237-4bbe-96aa-589147e8e469
+  Offer: Basic Prepaid Plan (ID: 1000)
+  Type: PREPAID
+  State: active
+  Status: Active, expiring in 18 days
+  Activation Date: 2025-12-23T14:30:00Z
+  Expiration Date: 2026-01-23T14:30:00Z
+  Recurring: yes
+  Cycle: 1 MONTH
+  Cycles Completed: 0
+
+  BALANCES:
+  
+  Voice Balance (SECONDS):
+    Balance ID: 5ab3efcc-2dd2-4e49-853b-067a3b3b7be0
+    Allocated: 3600 seconds (1.0 hours)
+    Available: 3565 seconds (0.99 hours)
+    Consumed: 35 seconds (0.01 hours)
+    Consumption: 0.97%
+    Status: Low consumption ✓
+    Expiration: 2026-01-23T14:30:00Z (18 days)
+    Est. Exhaustion: Not before expiration (low usage rate)
+    
+  SMS/MMS Balance (EVENTS):
+    Balance ID: abc123...
+    Allocated: 1000 messages
+    Available: 985 messages
+    Consumed: 15 messages
+    Consumption: 1.5%
+    Status: Low consumption ✓
+    Expiration: 2026-01-23T14:30:00Z (18 days)
+    Est. Exhaustion: Not before expiration
+    
+  Data Balance (BYTES):
+    Balance ID: def456...
+    Allocated: 10737418240 bytes (10.0 GB)
+    Available: 8589934592 bytes (8.0 GB)
+    Consumed: 2147483648 bytes (2.0 GB)
+    Consumption: 20.0%
+    Status: Low-Moderate consumption ✓
+    Expiration: 2026-01-23T14:30:00Z (18 days)
+    Est. Exhaustion: Not before expiration
+
+USAGE ANALYSIS:
+Total Usage Records: 16
+Analysis Period: 2025-12-24 to 2026-01-05 (13 days)
+
+Usage Distribution:
+  - Voice Calls: 3 calls, 35 seconds (0.01 hours)
+  - Data Sessions: 8 sessions, 2147483648 bytes (2.0 GB)
+  - SMS Messages: 5 messages
+
+Daily Average Usage:
+  - Voice: 2.69 seconds/day
+  - Data: 165 MB/day
+  - SMS: 0.38 messages/day
+
+BALANCE-USAGE CORRELATION:
+Voice: 100% correlation ✓
+Data: 100% correlation ✓
+SMS: 100% correlation ✓
+All usage properly recorded and deducted.
+
+RECOMMENDATIONS:
+1. Usage is well within allocated limits
+2. Current plan (Basic Prepaid) appears appropriate
+3. Monitor data usage - currently on track
+4. Consider rollover for unused minutes (97% unused)
+```
+
+---
+
+## Tool Call Sequence Summary
+
+1. `get_subscriber(subscriberId)` - Get profile and subscription list
+2. `get_account_history(entityId=subscriberId)` - Get event timeline  
+3. For each subscription:
+   - `get_subscription(subscriptionId)` - Get subscription details
+   - `list_balances(subscriptionId)` - Get all balances
+4. `list_usage_for_subscriber(subscriberId)` - Get usage records (paginate as needed)
+5. Perform calculations and correlation analysis
+6. Generate comprehensive report with findings and recommendations
+"""

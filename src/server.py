@@ -38,7 +38,7 @@ from src.tools.usage import (
     record_usage,
     list_usage_for_subscriber
 )
-from src.prompts.workflow import create_subscription_from_offer
+from src.prompts.workflow import create_subscription_from_offer, analyse_subscriber_account
 
 # Configure logging
 logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
@@ -100,6 +100,7 @@ mcp.add_tool(list_usage_for_subscriber)
 
 # Register Prompts
 mcp.prompt()(create_subscription_from_offer)
+mcp.prompt()(analyse_subscriber_account)
 
 def main():
     """Entry point for the MCP server."""
