@@ -34,6 +34,10 @@ from src.tools.offers import (
     get_available_offers,
     get_offer_by_id
 )
+from src.tools.usage import (
+    record_usage,
+    list_usage_for_subscriber
+)
 from src.prompts.workflow import create_subscription_from_offer
 
 # Configure logging
@@ -89,6 +93,10 @@ mcp.add_tool(get_account_history)
 # Register Offers Tools
 mcp.add_tool(get_available_offers)
 mcp.add_tool(get_offer_by_id)
+
+# Register Usage Tools
+mcp.add_tool(record_usage)
+mcp.add_tool(list_usage_for_subscriber)
 
 # Register Prompts
 mcp.prompt()(create_subscription_from_offer)

@@ -311,6 +311,36 @@ paths:
           $ref: '#/components/responses/Conflict'
       parameters:
       - $ref: '#/components/parameters/transactionId'
+  /subscribers/{subscriberId}/usage:
+    parameters:
+    - name: subscriberId
+      in: path
+      required: true
+      schema:
+        type: string
+    - $ref: '#/components/parameters/limit'
+    - $ref: '#/components/parameters/offset'
+    get:
+      summary: List usage records for a subscriber
+      description: Returns a paginated list of usage records for the specified subscriber. Use limit and offset parameters to paginate through large result sets.
+      responses:
+        '200':
+          description: List of usage records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Usage'
+              examples:
+                usageList:
+                  $ref: '#/components/examples/UsageArrayExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
   /subscribers/{subscriberId}/notificationAddresses:
     parameters:
     - name: subscriberId
@@ -1435,6 +1465,65 @@ paths:
           $ref: '#/components/responses/NotFound'
       parameters:
       - $ref: '#/components/parameters/transactionId'
+  /usage:
+    post:
+      summary: Create a usage record for a subscriber
+      description: Records usage for a specific subscriber, impacting the specified balance. Supports VOICE, DATA, SMS, and MMS usage types.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usage'
+            examples:
+              voiceUsage:
+                $ref: '#/components/examples/UsageVoiceExample'
+              dataUsage:
+                $ref: '#/components/examples/UsageDataExample'
+              smsUsage:
+                $ref: '#/components/examples/UsageSmsExample'
+      responses:
+        '201':
+          description: Usage record created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usage'
+              examples:
+                voiceUsage:
+                  $ref: '#/components/examples/UsageVoiceExample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Subscriber or balance not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                subscriberNotFound:
+                  value:
+                    code: 404
+                    message: Subscriber not found
+                    details:
+                      field: chargedPartyId
+                balanceNotFound:
+                  value:
+                    code: 404
+                    message: Balance not found
+                    details:
+                      field: impactedBalanceId
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                duplicateUsage:
+                  $ref: '#/components/examples/ConflictDuplicateUsage'
+      parameters:
+      - $ref: '#/components/parameters/transactionId'
 components:
   parameters:
     limit:
@@ -1847,6 +1936,7 @@ components:
           type: string
           enum:
           - SUBSCRIBER
+          - SUBSCRIPTION
           - GROUP
           - ACCOUNT
         creationDate:
@@ -1888,6 +1978,89 @@ components:
       - entityId
       - entityType
       - creationDate
+    Usage:
+      type: object
+      description: Usage record representing consumption of services by a subscriber
+      properties:
+        usageId:
+          type: string
+          description: Unique identifier for the usage record (UUID format)
+          example: 550e8400-e29b-41d4-a716-446655440000
+        usageTimestamp:
+          type: string
+          format: date-time
+          description: Record creation timestamp in ISO 8601 format
+        chargedPartyId:
+          type: string
+          description: Subscriber ID being charged
+          example: SUB123456789
+        chargedMsisdn:
+          type: string
+          description: MSISDN being charged in international format, digits only
+          pattern: ^[0-9]{11,15}$
+          example: '436602238811'
+        aParty:
+          type: string
+          description: Originating MSISDN in international format
+          pattern: ^[0-9]{11,15}$
+          example: '436602238811'
+        bParty:
+          type: string
+          description: Terminating MSISDN or APN (in case of data session)
+          example: '436602238822'
+        usageType:
+          type: string
+          description: Type of usage
+          enum:
+          - VOICE
+          - DATA
+          - SMS
+          - MMS
+        recordType:
+          type: string
+          description: Type of record
+          enum:
+          - START
+          - INTERIM
+          - STOP
+          - EVENT
+        recordOpeningTime:
+          type: string
+          format: date-time
+          description: Record opening timestamp in ISO 8601 format
+        recordClosingTime:
+          type: string
+          format: date-time
+          description: Record closing timestamp in ISO 8601 format
+        durationSeconds:
+          type: integer
+          description: Record duration in seconds (calculated as closing time minus opening time)
+          minimum: 0
+        volumeUsage:
+          type: number
+          description: Usage volume (bytes for data, count for SMS/MMS, seconds for voice)
+          minimum: 0
+        impactedBalanceId:
+          type: string
+          description: ID of the balance impacted by this usage record
+          example: BALANCE123456
+        balanceValueBefore:
+          type: number
+          description: Balance available value before usage
+        balanceValueAfter:
+          type: number
+          description: Balance available value after usage
+        offerId:
+          type: string
+          description: Associated offer ID
+          example: OFFER123456
+      required:
+      - usageId
+      - chargedPartyId
+      - usageType
+      - recordType
+      - volumeUsage
+      - impactedBalanceId
     Error:
       type: object
       properties:
@@ -2030,6 +2203,130 @@ components:
       summary: Array of account history entries
       value:
       - $ref: '#/components/examples/AccountHistoryExample/value'
+    UsageVoiceExample:
+      summary: A sample voice usage record
+      value:
+        usageId: 550e8400-e29b-41d4-a716-446655440000
+        usageTimestamp: '2024-06-15T10:05:00Z'
+        chargedPartyId: SUB123456789
+        chargedMsisdn: '436602238811'
+        aParty: '436602238811'
+        bParty: '436602238822'
+        usageType: VOICE
+        recordType: STOP
+        recordOpeningTime: '2024-06-15T10:00:00Z'
+        recordClosingTime: '2024-06-15T10:05:00Z'
+        durationSeconds: 300
+        volumeUsage: 300
+        impactedBalanceId: BALANCE123456
+        balanceValueBefore: 1000
+        balanceValueAfter: 700
+        offerId: OFFER123456
+    UsageDataExample:
+      summary: A sample data usage record
+      value:
+        usageId: 660e8400-e29b-41d4-a716-446655440001
+        usageTimestamp: '2024-06-15T11:30:00Z'
+        chargedPartyId: SUB123456789
+        chargedMsisdn: '436602238811'
+        aParty: '436602238811'
+        bParty: internet.telco.com
+        usageType: DATA
+        recordType: STOP
+        recordOpeningTime: '2024-06-15T11:00:00Z'
+        recordClosingTime: '2024-06-15T11:30:00Z'
+        durationSeconds: 1800
+        volumeUsage: 104857600
+        impactedBalanceId: BALANCE789012
+        balanceValueBefore: 5368709120
+        balanceValueAfter: 5263851520
+        offerId: OFFER789012
+    UsageSmsExample:
+      summary: A sample SMS usage record
+      value:
+        usageId: 770e8400-e29b-41d4-a716-446655440002
+        usageTimestamp: '2024-06-15T12:00:00Z'
+        chargedPartyId: SUB123456789
+        chargedMsisdn: '436602238811'
+        aParty: '436602238811'
+        bParty: '436602238833'
+        usageType: SMS
+        recordType: EVENT
+        recordOpeningTime: '2024-06-15T12:00:00Z'
+        recordClosingTime: '2024-06-15T12:00:00Z'
+        durationSeconds: 0
+        volumeUsage: 1
+        impactedBalanceId: BALANCE345678
+        balanceValueBefore: 100
+        balanceValueAfter: 99
+        offerId: OFFER345678
+    UsageArrayExample:
+      summary: Array of usage records
+      value:
+      - usageId: 550e8400-e29b-41d4-a716-446655440000
+        usageTimestamp: '2024-06-15T10:05:00Z'
+        chargedPartyId: SUB123456789
+        chargedMsisdn: '436602238811'
+        aParty: '436602238811'
+        bParty: '436602238822'
+        usageType: VOICE
+        recordType: STOP
+        recordOpeningTime: '2024-06-15T10:00:00Z'
+        recordClosingTime: '2024-06-15T10:05:00Z'
+        durationSeconds: 300
+        volumeUsage: 300
+        impactedBalanceId: BALANCE123456
+        balanceValueBefore: 1000
+        balanceValueAfter: 700
+        offerId: OFFER123456
+      - usageId: 660e8400-e29b-41d4-a716-446655440001
+        usageTimestamp: '2024-06-15T11:30:00Z'
+        chargedPartyId: SUB123456789
+        chargedMsisdn: '436602238811'
+        aParty: '436602238811'
+        bParty: internet.telco.com
+        usageType: DATA
+        recordType: STOP
+        recordOpeningTime: '2024-06-15T11:00:00Z'
+        recordClosingTime: '2024-06-15T11:30:00Z'
+        durationSeconds: 1800
+        volumeUsage: 104857600
+        impactedBalanceId: BALANCE789012
+        balanceValueBefore: 5368709120
+        balanceValueAfter: 5263851520
+        offerId: OFFER789012
+      - usageId: 770e8400-e29b-41d4-a716-446655440002
+        usageTimestamp: '2024-06-15T12:00:00Z'
+        chargedPartyId: SUB123456789
+        chargedMsisdn: '436602238811'
+        aParty: '436602238811'
+        bParty: '436602238833'
+        usageType: SMS
+        recordType: EVENT
+        recordOpeningTime: '2024-06-15T12:00:00Z'
+        recordClosingTime: '2024-06-15T12:00:00Z'
+        durationSeconds: 0
+        volumeUsage: 1
+        impactedBalanceId: BALANCE345678
+        balanceValueBefore: 100
+        balanceValueAfter: 99
+        offerId: OFFER345678
+    BadRequestUsage:
+      summary: Validation error creating usage record
+      value:
+        code: 400
+        message: Invalid usage payload
+        details:
+          field: usageType
+          issue: Invalid usage type. Must be one of VOICE, DATA, SMS, MMS
+    ConflictDuplicateUsage:
+      summary: Conflict example for duplicate usage record
+      value:
+        code: 409
+        message: Usage record with this usageId already exists
+        details:
+          field: usageId
+          value: 550e8400-e29b-41d4-a716-446655440000
     ConflictDuplicateAccountHistory:
       summary: Conflict example for duplicate account history entry
       value:
@@ -2104,6 +2401,8 @@ components:
               $ref: '#/components/examples/BadRequestNotificationAddress'
             accountHistoryValidation:
               $ref: '#/components/examples/BadRequestAccountHistory'
+            usageValidation:
+              $ref: '#/components/examples/BadRequestUsage'
     Conflict:
       description: Conflict
       content:
@@ -2126,6 +2425,8 @@ components:
               $ref: '#/components/examples/ConflictDuplicateTimer'
             duplicateAccountHistory:
               $ref: '#/components/examples/ConflictDuplicateAccountHistory'
+            duplicateUsage:
+              $ref: '#/components/examples/ConflictDuplicateUsage'
     NotFound:
       description: Resource not found
       content:
