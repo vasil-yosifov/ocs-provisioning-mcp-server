@@ -57,6 +57,58 @@ async def record_usage(usage: Usage) -> Dict[str, Any]:
      - Data usage → balance with `unitType: "BYTES"`
      - SMS/MMS usage → balance with `unitType: "EVENTS"`
 
+**Determining the Correct Balance:**
+
+When a subscriber has multiple subscriptions (and therefore multiple balances of the same type), the system must determine which balance to charge. Follow this workflow:
+
+1. **Filter by Unit Type**: Get all balances matching the usage type:
+   - VOICE usage → filter balances where `unitType == "SECONDS"`
+   - DATA usage → filter balances where `unitType == "BYTES"`
+   - SMS/MMS usage → filter balances where `unitType == "EVENTS"`
+
+2. **Filter by Validity Period**: From the filtered balances, keep only those currently valid:
+   - Check: `effectiveDate <= current_timestamp <= expirationDate`
+   - Exclude any expired or not-yet-effective balances
+
+3. **Order by Offer Priority**: For each active balance:
+   - Get the balance's subscription (via `subscriptionId`)
+   - Get the subscription's offer (via `offerId`)
+   - Get the offer's `priority` field (lower number = higher priority)
+   - Order balances by priority ascending (lowest priority number first)
+
+4. **Select Balance**: Use the balance with the lowest priority number (highest priority):
+   - This ensures preferred subscriptions are used first
+   - Example: Single-service data bundle (priority 1000) would be used before multi-service plan (priority 5000)
+
+**Priority-Based Balance Selection Example:**
+```
+Scenario: Subscriber has two active data balances
+
+Balance A:
+- subscriptionId: "SUB-DATA-BUNDLE" (offer 1002, priority: 1000)
+- unitType: "BYTES"
+- balanceAvailable: 5368709120 (5GB)
+- effectiveDate: "2026-01-01", expirationDate: "2026-01-31"
+
+Balance B:
+- subscriptionId: "SUB-BASIC-PLAN" (offer 1000, priority: 5000)
+- unitType: "BYTES"  
+- balanceAvailable: 10737418240 (10GB)
+- effectiveDate: "2026-01-01", expirationDate: "2026-01-31"
+
+Current date: 2026-01-07
+
+Selection process:
+1. Both balances match unitType "BYTES" ✓
+2. Both are valid (within effective/expiration dates) ✓
+3. Order by priority: Balance A (1000) < Balance B (5000)
+4. Selected: Balance A (priority 1000) - data bundle used first
+
+Result: impactedBalanceId = Balance A's balanceId
+```
+
+This ensures that add-on bundles and specialized offers are consumed before general-purpose plans, maximizing value for the subscriber.
+
 **Typical Workflow:**
 1. Determine the subscriber being charged (obtain subscriberId)
 2. Identify the type of service used (voice, data, SMS, MMS)

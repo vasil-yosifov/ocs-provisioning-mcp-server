@@ -16,6 +16,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Basic prepaid plan",
             "description": "Basic prepaid priceplan, which covers all type of services",
             "price": 7.99,
+            "priority": 5000,
             "type": "PREPAID",
             "recurring": True,
             "paid": True,
@@ -64,6 +65,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Basic postpaid plan",
             "description": "Basic postpaid priceplan, which covers all type of services",
             "price": 15.99,
+            "priority": 5100,
             "type": "POSTPAID",
             "recurring": True,
             "paid": True,
@@ -112,6 +114,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Weekly data bundle 5GB",
             "description": "Prepaid weekly data bundle – 5GB",
             "price": 4.99,
+            "priority": 1000,
             "type": "PREPAID",
             "recurring": True,
             "paid": True,
@@ -138,6 +141,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Monthly data bundle 25GB",
             "description": "Prepaid monthly data bundle – 25GB",
             "price": 12.99,
+            "priority": 1100,
             "type": "PREPAID",
             "recurring": False,
             "paid": True,
@@ -164,6 +168,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Premium prepaid plan",
             "description": "Premium prepaid price plan, which contains more free units for all type of services",
             "price": 9.99,
+            "priority": 5200,
             "type": "PREPAID",
             "recurring": True,
             "paid": True,
@@ -212,6 +217,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Premium postpaid plan",
             "description": "Premium postpaid price plan with enhanced allowances for all services",
             "price": 24.99,
+            "priority": 5300,
             "type": "POSTPAID",
             "recurring": True,
             "paid": True,
@@ -260,6 +266,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Weekly data bundle 10GB - Postpaid",
             "description": "Postpaid weekly data bundle – 10GB with rollover",
             "price": 6.99,
+            "priority": 1200,
             "type": "POSTPAID",
             "recurring": True,
             "paid": True,
@@ -286,6 +293,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Monthly data bundle 50GB - Postpaid",
             "description": "Postpaid monthly data bundle – 50GB with rollover",
             "price": 19.99,
+            "priority": 1300,
             "type": "POSTPAID",
             "recurring": True,
             "paid": True,
@@ -312,6 +320,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Voice bundle 500 minutes - Postpaid",
             "description": "Additional 500 minutes voice bundle for postpaid subscribers",
             "price": 5.99,
+            "priority": 2000,
             "type": "POSTPAID",
             "recurring": True,
             "paid": True,
@@ -338,6 +347,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "Voice bundle 1000 minutes - Postpaid",
             "description": "Additional 1000 minutes voice bundle for postpaid subscribers",
             "price": 9.99,
+            "priority": 2100,
             "type": "POSTPAID",
             "recurring": True,
             "paid": True,
@@ -364,6 +374,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "SMS/MMS bundle 1000 messages - Postpaid",
             "description": "Additional 1000 SMS/MMS messages bundle for postpaid subscribers",
             "price": 3.99,
+            "priority": 3000,
             "type": "POSTPAID",
             "recurring": True,
             "paid": True,
@@ -390,6 +401,7 @@ def _get_offers_catalog() -> List[Dict[str, Any]]:
             "offerName": "SMS/MMS bundle 2500 messages - Postpaid",
             "description": "Additional 2500 SMS/MMS messages bundle for postpaid subscribers",
             "price": 7.99,
+            "priority": 3100,
             "type": "POSTPAID",
             "recurring": True,
             "paid": True,
@@ -428,6 +440,7 @@ A JSON-formatted list of available offers, where each offer includes:
 - `offerName`: Human-readable name of the offer
 - `description`: Detailed description of what the offer includes
 - `price`: Monthly or one-time price for the offer
+- `priority`: Usage priority (1-9999) for subscribers with multiple subscriptions. Lower value means higher priority. Multi-service offers (voice+SMS+data) have higher values (5000+), while single-service bundles have lower values (1000-3999) based on service type
 - `type`: Offer type ("PREPAID" or "POSTPAID")
 - `recurring`: Whether the offer renews automatically (true/false)
 - `paid`: Whether the offer is paid (true/false)
@@ -510,6 +523,7 @@ A JSON-formatted string containing the complete offer details including:
 - `offerName`: Human-readable name of the offer
 - `description`: Detailed description of what the offer includes
 - `price`: Monthly or one-time price for the offer
+- `priority`: Usage priority (1-9999) for subscribers with multiple subscriptions. Lower value means higher priority. Multi-service offers (voice+SMS+data) have higher values (5000+), while single-service bundles have lower values (1000-3999) based on service type
 - `type`: Offer type ("PREPAID" or "POSTPAID")
 - `recurring`: Whether the offer renews automatically (true/false)
 - `paid`: Whether the offer is paid (true/false)
@@ -584,6 +598,6 @@ This tool is particularly useful when creating subscriptions, as it provides all
         error_response = {
             "error": "Offer not found",
             "message": f"No offer found with offerId: {offerId}",
-            "availableOfferIds": ["1000", "1001", "1002", "1003", "1010", "1011", "1020", "1021", "1030", "1031", "1040", "1041"]
+            "availableOfferIds": [o["offerId"] for o in offers]
         }
         return json.dumps(error_response, indent=2)
